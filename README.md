@@ -75,3 +75,23 @@ To use SauceLabsPlugin add plugin to project like following:
 Or via properties file: 
     
     cucumberPlugins=io.cify.cucumber.plugins.CifyJSONFormatter:build/cify/reports/json/
+
+
+### BrowserStackPlugin
+
+To use BrowserStackPlugin add plugin to project like following:
+
+    ./gradlew cucumber -cucumberPlugins=io.cify.cucumber.plugins.SauceLabsPlugin
+    
+Or via properties file: 
+    
+    cucumberPlugins=io.cify.cucumber.plugins.SauceLabsPlugin
+    
+#### Adding username and password
+
+Simply add **BROWSERSTACK_USERNAME** and **BROWSERSTACK_AUTOMATE_KEY** to system environment variables
+
+or
+
+send -Dcify.BROWSERSTACK_USERNAME and -Dcify.BROWSERSTACK_AUTOMATE_KEY with command line.
+    
