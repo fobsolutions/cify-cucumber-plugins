@@ -10,7 +10,6 @@ apply plugin: 'maven-publish'
 
 repositories {
     mavenCentral()
-    mavenLocal()
     maven {
         url "http://fobsolutions.bintray.com/io.cify"
     }
