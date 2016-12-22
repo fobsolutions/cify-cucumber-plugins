@@ -159,7 +159,7 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void result(Result result) {
-        long durationInMilliseconds = result.duration? result.duration/nanoToMilliDivider : 0
+        long durationInMilliseconds = result.duration? result.duration/NANOTOMILLIDIVIDER : 0
         trm.stepFinished(result.status,durationInMilliseconds,result.errorMessage)
     }
 
