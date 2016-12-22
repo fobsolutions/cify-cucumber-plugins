@@ -15,7 +15,7 @@ import static java.util.UUID.randomUUID
 class CifyReporterPlugin implements Formatter, Reporter {
 
     private TestReportManager trm
-    private static final long nanoToMilliDivider = 1000000L
+    private static final long NANOTOMILLIDIVIDER = 1000000L
 
     /**
      * Is called at the beginning of the scenario life cycle, meaning before the first "before" hook.
