@@ -14,8 +14,8 @@ import static java.util.UUID.randomUUID
  */
 class CifyReporterPlugin implements Formatter, Reporter {
 
-    TestReportManager trm
-    long nanoToMilliDivider = 1000000L
+    private TestReportManager trm
+    private static final long nanoToMilliDivider = 1000000L
 
     /**
      * Is called at the beginning of the scenario life cycle, meaning before the first "before" hook.
@@ -53,7 +53,7 @@ class CifyReporterPlugin implements Formatter, Reporter {
     @Override
     void feature(Feature feature) {
         String cucumberRunId = getParameter("runId")?:generateRunId()
-        trm = TestReportManager.getInstance()
+        trm = TestReportManager.getTestReportManager()
         trm.testRunStarted(feature.name, cucumberRunId)
     }
 
