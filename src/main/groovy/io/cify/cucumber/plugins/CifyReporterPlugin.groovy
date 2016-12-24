@@ -52,7 +52,7 @@ class CifyReporterPlugin implements Formatter, Reporter {
     void feature(Feature feature) {
         String cucumberRunId = getParameter("runId")
         trm = TestReportManager.getTestReportManager()
-        trm.testRunStarted(feature.name, cucumberRunId)
+        trm.testRunStarted(feature.name, cucumberRunId, feature.id)
     }
 
     /**
