@@ -5,8 +5,6 @@ import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
 import io.cify.framework.reporting.TestReportManager
 
-import static java.util.UUID.randomUUID
-
 /**
  * Created by FOB Solutions
  *
@@ -15,7 +13,7 @@ import static java.util.UUID.randomUUID
 class CifyReporterPlugin implements Formatter, Reporter {
 
     private TestReportManager trm
-    private static final long NANOTOMILLIDIVIDER = 1000000L
+    private static final long NANO_TO_MILLI_DIVIDER = 1000000L
 
     /**
      * Is called at the beginning of the scenario life cycle, meaning before the first "before" hook.
@@ -52,7 +50,7 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void feature(Feature feature) {
-        String cucumberRunId = getParameter("runId")?:generateRunId()
+        String cucumberRunId = getParameter("runId")
         trm = TestReportManager.getTestReportManager()
         trm.testRunStarted(feature.name, cucumberRunId)
     }
@@ -101,7 +99,7 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void scenario(Scenario scenario) {
-        trm.scenarioStarted(scenario.name)
+        trm.scenarioStarted(scenario.name, scenario.id)
     }
 
     /**
@@ -159,13 +157,13 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void result(Result result) {
-        long durationInMilliseconds = result.duration? result.duration/NANOTOMILLIDIVIDER : 0
-        trm.stepFinished(result.status,durationInMilliseconds,result.errorMessage)
+        long durationInMilliseconds = result.duration ? result.duration / NANO_TO_MILLI_DIVIDER : 0
+        trm.stepFinished(result.status, durationInMilliseconds, result.errorMessage)
     }
 
     @Override
     void after(Match match, Result result) {
-        trm.scenarioFinished(result.status,result.errorMessage)
+        trm.scenarioFinished(result.status, result.errorMessage)
     }
 
     @Override
@@ -196,13 +194,5 @@ class CifyReporterPlugin implements Formatter, Reporter {
         } else {
             return null
         }
-    }
-
-    /**
-     * Generates unique cucumber run id
-     * @return String
-     */
-    private static String generateRunId(){
-        return (System.currentTimeMillis() + "-"+randomUUID()) as String
     }
 }
