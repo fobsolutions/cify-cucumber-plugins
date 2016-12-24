@@ -110,7 +110,7 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void step(Step step) {
-        trm.stepStarted(step.name)
+        trm.stepStarted("$step.keyword$step.name")
     }
 
     /**
