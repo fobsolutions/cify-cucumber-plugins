@@ -29,9 +29,9 @@ class AWSReport {
     private static final String PARAM_AWS_FIREHOSE_STREAM = "awsFirehoseStream"
     private static final String PARAM_AWS_REGION = "awsRegion"
 
-    public static void exportToAwsFirehoseStream(String data) {
+    public static String exportToAwsFirehoseStream(String data) {
         initParameters()
-        putFirehoseRecord(data)
+        return putFirehoseRecord(data)
     }
 
     private static void initParameters() {
@@ -39,9 +39,9 @@ class AWSReport {
             throw new CifyFrameworkException("AWS credentials not provided.")
         }
         awsFirehoseStream = getParameter(PARAM_AWS_FIREHOSE_STREAM) ?: defaultAwsFirehoseStream
-        //remove next line
-        awsFirehoseStream = "fob-reporting-test-stream"
+        println("AWS Firehose stream: " + awsFirehoseStream)
         awsRegion = getParameter(PARAM_AWS_REGION) ?: defaultAwsRegion
+        println("AWS region: " + awsRegion)
     }
 
     /**
@@ -68,6 +68,7 @@ class AWSReport {
         PutRecordRequest putRecordRequest = new PutRecordRequest().withDeliveryStreamName(awsFirehoseStream).withRecord(record)
         putRecordRequest.setRecord(record)
         PutRecordResult result = firehoseClient.putRecord(putRecordRequest)
+        println("AWS Record ID:" + result.getRecordId())
         return result.getRecordId()
     }
 
@@ -75,8 +76,10 @@ class AWSReport {
         awsAccessKey = getParameter(PARAM_AWS_ACCESS_KEY)
         awsSecretKey = getParameter(PARAM_AWS_SECRET_KEY)
         if (awsAccessKey && awsSecretKey) {
+            println("Using AWS credentials from parameters..")
             credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey)
         } else {
+            println("Using AWS credentials provider..")
             credentials = new ProfileCredentialsProvider().getCredentials()
         }
         return credentials

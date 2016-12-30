@@ -9,17 +9,21 @@ class ReportManager {
     private static final String DEFAULT_REPORTING_DIR = "reporting"
     private static final String PARAM_REPORTING_DIR = "reportingDir"
 
-    public static void report(String json) {
-        if (json) {
+    public static void report(String data) {
+        if (data) {
             try {
-                AWSReport.exportToAwsFirehoseStream(json)
+                export(data)
             } catch (all) {
                 println("Report failed. Error: " + all.message)
                 String filepath = Paths.get(getReportingDir(), generateId() + ".json")
-                FileReport.saveReportToFile(json, filepath)
+                FileReport.saveReportToFile(data, filepath)
                 println("Report saved to: " + filepath)
             }
         }
+    }
+
+    private static export(String data) {
+            AWSReport.exportToAwsFirehoseStream(data)
     }
 
     private static String getReportingDir() {
