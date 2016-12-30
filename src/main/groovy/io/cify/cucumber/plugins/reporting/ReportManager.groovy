@@ -1,29 +1,29 @@
 package io.cify.cucumber.plugins.reporting
 
+import java.nio.file.Paths
+
+import static java.util.UUID.randomUUID
+
 class ReportManager {
 
-    private static final String DEFAULT_REPORTING_DIR = "build/cify/reporting/"
+    private static final String DEFAULT_REPORTING_DIR = "reporting"
     private static final String PARAM_REPORTING_DIR = "reportingDir"
-    private static final String PROCESSED = "-processed"
 
     public static void report(String json) {
         if (json) {
             try {
-                File file = FileReport.saveReportToFile(json, getReportingDir())
                 AWSReport.exportToAwsFirehoseStream(json)
-                FileReport.moveFileToDir(file, getReportingProcessedDir())
             } catch (all) {
                 println("Report failed. Error: " + all.message)
+                String filepath = Paths.get(getReportingDir(), generateId() + ".json")
+                FileReport.saveReportToFile(json, filepath)
+                println("Report saved to: " + filepath)
             }
         }
     }
 
     private static String getReportingDir() {
         getParameter(PARAM_REPORTING_DIR) ?: DEFAULT_REPORTING_DIR
-    }
-
-    private static String getReportingProcessedDir() {
-        getReportingDir() + PROCESSED
     }
 
     /**
@@ -39,5 +39,13 @@ class ReportManager {
         } else {
             return null
         }
+    }
+
+    /**
+     * Generates unique id
+     * @return string
+     */
+    private static String generateId() {
+        return (System.currentTimeMillis() + "-" + randomUUID()) as String
     }
 }
