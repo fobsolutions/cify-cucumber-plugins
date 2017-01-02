@@ -129,8 +129,7 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void done() {
-        String jsonReport = trm.testRunFinished()
-        ReportManager.report(jsonReport)
+        ReportManager.report(trm?.testRunFinished())
     }
 
     /**
@@ -160,14 +159,12 @@ class CifyReporterPlugin implements Formatter, Reporter {
     @Override
     void result(Result result) {
         long durationInMilliseconds = result.duration ? result.duration / NANO_TO_MILLI_DIVIDER : 0
-        String jsonReport = trm.stepFinished(result.status, durationInMilliseconds, result.errorMessage)
-        ReportManager.report(jsonReport)
+        ReportManager.report(trm?.stepFinished(result.status, durationInMilliseconds, result.errorMessage))
     }
 
     @Override
     void after(Match match, Result result) {
-        String jsonReport = trm.scenarioFinished(result.status, result.errorMessage)
-        ReportManager.report(jsonReport)
+        ReportManager.report(trm?.scenarioFinished(result.status, result.errorMessage))
     }
 
     @Override
