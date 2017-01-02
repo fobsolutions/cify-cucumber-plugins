@@ -3,6 +3,7 @@ package io.cify.cucumber.plugins
 import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
+import io.cify.cucumber.plugins.reporting.ReportManager
 import io.cify.framework.reporting.TestReportManager
 
 /**
@@ -128,7 +129,8 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void done() {
-        trm.testRunFinished()
+        String jsonReport = trm.testRunFinished()
+        ReportManager.report(jsonReport)
     }
 
     /**
@@ -158,12 +160,14 @@ class CifyReporterPlugin implements Formatter, Reporter {
     @Override
     void result(Result result) {
         long durationInMilliseconds = result.duration ? result.duration / NANO_TO_MILLI_DIVIDER : 0
-        trm.stepFinished(result.status, durationInMilliseconds, result.errorMessage)
+        String jsonReport = trm.stepFinished(result.status, durationInMilliseconds, result.errorMessage)
+        ReportManager.report(jsonReport)
     }
 
     @Override
     void after(Match match, Result result) {
-        trm.scenarioFinished(result.status, result.errorMessage)
+        String jsonReport = trm.scenarioFinished(result.status, result.errorMessage)
+        ReportManager.report(jsonReport)
     }
 
     @Override
