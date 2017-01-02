@@ -9,11 +9,15 @@ import com.amazonaws.services.kinesisfirehose.AmazonKinesisFirehoseClient
 import com.amazonaws.services.kinesisfirehose.model.PutRecordRequest
 import com.amazonaws.services.kinesisfirehose.model.PutRecordResult
 import com.amazonaws.services.kinesisfirehose.model.Record
-import io.cify.framework.core.CifyFrameworkException
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
+/**
+ * Created by FOB Solutions
+ *
+ * This class is responsible for reporting data to AWS
+ */
 class AWSReport {
 
     private static String awsSecretKey
@@ -29,36 +33,34 @@ class AWSReport {
     private static final String PARAM_AWS_FIREHOSE_STREAM = "awsFirehoseStream"
     private static final String PARAM_AWS_REGION = "awsRegion"
 
+    /**
+     * Initializing AWS parameters and put data to AWS Firehose stream
+     * @param data
+     * @return String
+     */
     public static String exportToAwsFirehoseStream(String data) {
         initParameters()
         return putFirehoseRecord(data)
     }
 
+    /**
+     * Initializing AWS parameters
+     */
     private static void initParameters() {
         getAwsCredentials() ?: {
-            throw new CifyFrameworkException("AWS credentials not provided.")
+            throw new Exception("AWS credentials not provided.")
         }
-        awsFirehoseStream = getParameter(PARAM_AWS_FIREHOSE_STREAM) ?: defaultAwsFirehoseStream
+        awsFirehoseStream = ReportManager.getParameter(PARAM_AWS_FIREHOSE_STREAM) ?: defaultAwsFirehoseStream
         println("AWS Firehose stream: " + awsFirehoseStream)
-        awsRegion = getParameter(PARAM_AWS_REGION) ?: defaultAwsRegion
+        awsRegion = ReportManager.getParameter(PARAM_AWS_REGION) ?: defaultAwsRegion
         println("AWS region: " + awsRegion)
     }
 
     /**
-     * Gets parameter from system
-     * @param parameter
+     * Put data record to AWS Firehose stream and returns record ID
+     * @param data
      * @return String
      */
-    private static String getParameter(String parameter) {
-        if (System.getenv(parameter)) {
-            return System.getenv(parameter)
-        } else if (System.getProperty(parameter)) {
-            return System.getProperty(parameter)
-        } else {
-            return null
-        }
-    }
-
     private static String putFirehoseRecord(String data) {
         AmazonKinesisFirehoseClient firehoseClient = new AmazonKinesisFirehoseClient(credentials)
         Region region = RegionUtils.getRegion(awsRegion)
@@ -68,18 +70,22 @@ class AWSReport {
         PutRecordRequest putRecordRequest = new PutRecordRequest().withDeliveryStreamName(awsFirehoseStream).withRecord(record)
         putRecordRequest.setRecord(record)
         PutRecordResult result = firehoseClient.putRecord(putRecordRequest)
-        println("AWS Record ID:" + result.getRecordId())
+        println("AWS Record ID: " + result.getRecordId())
         return result.getRecordId()
     }
 
+    /**
+     * Creates and returns AWS credentials
+     * @return AWSCredentials
+     */
     private static AWSCredentials getAwsCredentials() {
-        awsAccessKey = getParameter(PARAM_AWS_ACCESS_KEY)
-        awsSecretKey = getParameter(PARAM_AWS_SECRET_KEY)
+        awsAccessKey = ReportManager.getParameter(PARAM_AWS_ACCESS_KEY)
+        awsSecretKey = ReportManager.getParameter(PARAM_AWS_SECRET_KEY)
         if (awsAccessKey && awsSecretKey) {
-            println("Using AWS credentials from parameters..")
+            println("Using AWS credentials from parameters.")
             credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey)
         } else {
-            println("Using AWS credentials provider..")
+            println("Using AWS credentials provider.")
             credentials = new ProfileCredentialsProvider().getCredentials()
         }
         return credentials
