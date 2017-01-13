@@ -34,6 +34,10 @@ class AWSKinesisStream {
     private static final String PARAM_AWS_KINESIS_STREAM = "awsKinesisStream"
     private static final String PARAM_AWS_REGION = "awsRegion"
 
+    private static final String PARAM_ACCESS_KEY = "accessKey"
+    private static String accessKey
+    private static String awsKinesisStreamPostfix = "-stream"
+
     /**
      * Initializing AWS parameters and put data to AWS Kinesis stream
      * @param data
@@ -55,10 +59,14 @@ class AWSKinesisStream {
      * Initializing AWS parameters
      */
     private static void initParameters() {
+        accessKey = ReportManager.getParameter(PARAM_ACCESS_KEY) ?: {
+            throw new Exception("Access key not provided.")
+        }
         getAwsCredentials() ?: {
             throw new Exception("AWS credentials not provided.")
         }
-        awsKinesisStream = ReportManager.getParameter(PARAM_AWS_KINESIS_STREAM) ?: defaultAwsKinesisStream
+        //awsKinesisStream = ReportManager.getParameter(PARAM_AWS_KINESIS_STREAM) ?: defaultAwsKinesisStream
+        awsKinesisStream = accessKey + awsKinesisStreamPostfix
         println("AWS Kinesis stream: " + awsKinesisStream)
         awsRegion = ReportManager.getParameter(PARAM_AWS_REGION) ?: defaultAwsRegion
         println("AWS region: " + awsRegion)
@@ -71,13 +79,14 @@ class AWSKinesisStream {
      * @return String
      */
     private static String putKinesisStreamRecord(String data, String partitionKey) {
+        String newPartitionKey = "<accesskey>$accessKey<accesskey><partition>$partitionKey<partition>"
         AmazonKinesisClient kinesisClient = new AmazonKinesisClient(credentials)
         Region region = RegionUtils.getRegion(awsRegion)
         kinesisClient.setRegion(region)
 
         PutRecordRequest putRecordRequest = new PutRecordRequest()
         putRecordRequest.setData(ByteBuffer.wrap(data.getBytes(StandardCharsets.UTF_8)))
-        putRecordRequest.setPartitionKey(partitionKey)
+        putRecordRequest.setPartitionKey(newPartitionKey)
         putRecordRequest.setStreamName(awsKinesisStream)
 
         PutRecordResult result = kinesisClient.putRecord(putRecordRequest)
