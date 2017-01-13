@@ -39,7 +39,7 @@ class ReportManager {
      * @return String
      */
     private static String export(String data) {
-            return AWSReport.exportToAwsFirehoseStream(data)
+            return AWSKinesisStream.exportToAwsKinesisStream(data)
     }
 
     /**
