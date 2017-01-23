@@ -2,6 +2,7 @@ package io.cify.cucumber.plugins.reporting
 
 import com.amazonaws.auth.AWSCredentials
 import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.auth.BasicSessionCredentials
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.RegionUtils
@@ -29,6 +30,8 @@ class AWSKinesisStream {
     private static String defaultAwsRegion = "us-west-2"
     private static String defaultAwsKinesisStream = "cify-reporting-test-stream"
 
+    private static final String PARAM_CIFY_ACCESS_KEY = "cifyAccessKey"
+    private static final String PARAM_CIFY_SECRET_KEY = "cifySecretKey"
     private static final String PARAM_AWS_ACCESS_KEY = "awsAccessKey"
     private static final String PARAM_AWS_SECRET_KEY = "awsSecretKey"
     private static final String PARAM_AWS_KINESIS_STREAM = "awsKinesisStream"
@@ -59,17 +62,15 @@ class AWSKinesisStream {
      * Initializing AWS parameters
      */
     private static void initParameters() {
-        accessKey = ReportManager.getParameter(PARAM_ACCESS_KEY) ?: {
-            throw new Exception("Access key not provided.")
-        }
+        awsRegion = ReportManager.getParameter(PARAM_AWS_REGION) ?: defaultAwsRegion
+        println("AWS region: " + awsRegion)
+
         getAwsCredentials() ?: {
             throw new Exception("AWS credentials not provided.")
         }
-        //awsKinesisStream = ReportManager.getParameter(PARAM_AWS_KINESIS_STREAM) ?: defaultAwsKinesisStream
+
         awsKinesisStream = accessKey + awsKinesisStreamPostfix
         println("AWS Kinesis stream: " + awsKinesisStream)
-        awsRegion = ReportManager.getParameter(PARAM_AWS_REGION) ?: defaultAwsRegion
-        println("AWS region: " + awsRegion)
     }
 
     /**
@@ -99,13 +100,26 @@ class AWSKinesisStream {
      * @return AWSCredentials
      */
     private static AWSCredentials getAwsCredentials() {
+        String cifyAccessKey = ReportManager.getParameter(PARAM_CIFY_ACCESS_KEY)
+        String cifySecretKey = ReportManager.getParameter(PARAM_CIFY_SECRET_KEY)
+        if (cifyAccessKey && cifySecretKey) {
+            println("Using provided cify parameters to get temporary AWS credentials.")
+            def authData = AWSAuthentication.getAuthData(cifyAccessKey, cifySecretKey, awsRegion)
+            AWSCredentials sessionCredentials =
+                    new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
+            if(sessionCredentials){
+                accessKey = authData?.company
+                return sessionCredentials
+            }
+        }
+
         awsAccessKey = ReportManager.getParameter(PARAM_AWS_ACCESS_KEY)
         awsSecretKey = ReportManager.getParameter(PARAM_AWS_SECRET_KEY)
         if (awsAccessKey && awsSecretKey) {
-            println("Using AWS credentials from parameters.")
+            println("Using AWS credentials directly from parameters.")
             credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey)
         } else {
-            println("Using AWS credentials provider.")
+            println("Using AWS profile credentials provider.")
             credentials = new ProfileCredentialsProvider().getCredentials()
         }
         return credentials
