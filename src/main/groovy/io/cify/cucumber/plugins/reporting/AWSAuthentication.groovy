@@ -19,12 +19,22 @@ import org.apache.http.util.EntityUtils
 
 import javax.net.ssl.SSLContext
 
+/**
+ * Created by FOB Solutions
+ *
+ * This class is responsible for user authentication via AWS service
+ */
 class AWSAuthentication {
 
     private static final PARAM_CIFY_AWS_AUTH_API = "cifyAuthApi"
     private static String apiStage = "test"
     private static def authData
 
+    /**
+     * Returns current authentication data
+     *
+     * @return json object
+     */
     public static def getAuthData() {
         if (hasInformation(authData)) {
             return authData
@@ -32,6 +42,14 @@ class AWSAuthentication {
         return null
     }
 
+    /**
+     * Sends request to AWS service and returns authentication data
+     *
+     * @param username
+     * @param password
+     * @param awsRegion
+     * @return json object
+     */
     public static def getAuthData(String username, String password, String awsRegion) {
         if (!username || !password || !awsRegion) {
             return null
@@ -73,36 +91,34 @@ class AWSAuthentication {
     }
 
     private static String httpsRequest(String hostName, String resource, String postData) {
-
-        HttpHost target = new HttpHost(hostName, 443, "https");
-
-        SSLContext sslContext = SSLContexts.createSystemDefault();
+        HttpHost target = new HttpHost(hostName, 443, "https")
+        SSLContext sslContext = SSLContexts.createSystemDefault()
         String[] supportedProtocols = ["TLSv1", "SSLv3"]
-        SSLConnectionSocketFactory sslConnectionSocketFactory = new SSLConnectionSocketFactory(sslContext, supportedProtocols, null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+        SSLConnectionSocketFactory sslConnectionSocketFactory = new SSLConnectionSocketFactory(sslContext, supportedProtocols, null, SSLConnectionSocketFactory.getDefaultHostnameVerifier())
 
         Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory> create()
                 .register("http", PlainConnectionSocketFactory.INSTANCE)
                 .register("https", sslConnectionSocketFactory)
-                .build();
-        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+                .build()
+        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(socketFactoryRegistry)
 
         CloseableHttpClient httpClient = HttpClients.custom()
                 .setSSLSocketFactory(sslConnectionSocketFactory)
                 .setConnectionManager(cm)
-                .build();
+                .build()
 
-        HttpPost httpPost = new HttpPost("/$resource");
-        ByteArrayEntity postDataEntity = new ByteArrayEntity(postData.getBytes());
-        httpPost.setEntity(postDataEntity);
-        CloseableHttpResponse response = httpClient.execute(target, httpPost);
+        HttpPost httpPost = new HttpPost("/$resource")
+        ByteArrayEntity postDataEntity = new ByteArrayEntity(postData.getBytes())
+        httpPost.setEntity(postDataEntity)
+        CloseableHttpResponse response = httpClient.execute(target, httpPost)
 
         String result = ""
         try {
-            HttpEntity entity = response.getEntity();
-            result = EntityUtils.toString(entity);
-            EntityUtils.consume(entity);
+            HttpEntity entity = response.getEntity()
+            result = EntityUtils.toString(entity)
+            EntityUtils.consume(entity)
         } finally {
-            response.close();
+            response.close()
         }
 
         return result
