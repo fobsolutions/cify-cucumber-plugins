@@ -28,17 +28,14 @@ class AWSKinesisStream {
     private static String awsRegion
     private static String awsKinesisStream
     private static String defaultAwsRegion = "us-west-2"
-    private static String defaultAwsKinesisStream = "cify-reporting-test-stream"
 
     private static final String PARAM_CIFY_ACCESS_KEY = "cifyAccessKey"
     private static final String PARAM_CIFY_SECRET_KEY = "cifySecretKey"
     private static final String PARAM_AWS_ACCESS_KEY = "awsAccessKey"
     private static final String PARAM_AWS_SECRET_KEY = "awsSecretKey"
-    private static final String PARAM_AWS_KINESIS_STREAM = "awsKinesisStream"
     private static final String PARAM_AWS_REGION = "awsRegion"
 
-    private static final String PARAM_ACCESS_KEY = "accessKey"
-    private static String accessKey
+    private static String company
     private static String awsKinesisStreamPostfix = "-stream"
 
     /**
@@ -51,8 +48,12 @@ class AWSKinesisStream {
         String partitionKey = result?.keySet()[0].toString()
         if (partitionKey) {
             initParameters()
-            data = new JsonBuilder(result.get(partitionKey)).toString()
-            return putKinesisStreamRecord(data, partitionKey)
+            def json = new JsonBuilder()
+            json.data(
+                    idToken: AWSAuthentication.getAuthData()?.idToken,
+                    report: data
+            )
+            return putKinesisStreamRecord(json.toString(), partitionKey)
         } else {
             return null
         }
@@ -65,11 +66,11 @@ class AWSKinesisStream {
         awsRegion = ReportManager.getParameter(PARAM_AWS_REGION) ?: defaultAwsRegion
         println("AWS region: " + awsRegion)
 
-        getAwsCredentials() ?: {
+        if(!getAwsCredentials()) {
             throw new Exception("AWS credentials not provided.")
         }
 
-        awsKinesisStream = accessKey + awsKinesisStreamPostfix
+        awsKinesisStream = company + awsKinesisStreamPostfix
         println("AWS Kinesis stream: " + awsKinesisStream)
     }
 
@@ -80,7 +81,7 @@ class AWSKinesisStream {
      * @return String
      */
     private static String putKinesisStreamRecord(String data, String partitionKey) {
-        String newPartitionKey = "<accesskey>$accessKey<accesskey><partition>$partitionKey<partition>"
+        String newPartitionKey = "<company>$company<company><partition>$partitionKey<partition>"
         AmazonKinesisClient kinesisClient = new AmazonKinesisClient(credentials)
         Region region = RegionUtils.getRegion(awsRegion)
         kinesisClient.setRegion(region)
@@ -105,11 +106,10 @@ class AWSKinesisStream {
         if (cifyAccessKey && cifySecretKey) {
             println("Using provided cify parameters to get temporary AWS credentials.")
             def authData = AWSAuthentication.getAuthData(cifyAccessKey, cifySecretKey, awsRegion)
-            AWSCredentials sessionCredentials =
-                    new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
-            if(sessionCredentials){
-                accessKey = authData?.company
-                return sessionCredentials
+            credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
+            if(credentials){
+                company = authData?.company
+                return credentials
             }
         }
 

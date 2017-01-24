@@ -25,13 +25,26 @@ class AWSAuthentication {
     private static String apiStage = "test"
     private static def authData
 
-    public static def getAuthData(String username, String password, String awsRegion){
-        if(hasInformation(authData)){
+    public static def getAuthData() {
+        if (hasInformation(authData)) {
+            return authData
+        }
+        return null
+    }
+
+    public static def getAuthData(String username, String password, String awsRegion) {
+        if (!username || !password || !awsRegion) {
+            return null
+        }
+
+        if (hasInformation(authData)) {
             return authData
         }
 
         String awsAuthAPI = ReportManager.getParameter(PARAM_CIFY_AWS_AUTH_API)
-        awsAuthAPI?: {throw new Exception("AWS authentication API not provided.")}
+        if (!awsAuthAPI) {
+            throw new Exception("AWS authentication API not provided.")
+        }
 
         String apiHostname = "${awsAuthAPI}.execute-api.${awsRegion}.amazonaws.com"
         String postData = "{\n" +
@@ -43,23 +56,23 @@ class AWSAuthentication {
                 "  }\n" +
                 "}"
 
-        String result = httpsRequest(apiHostname,apiStage,postData)
+        String result = httpsRequest(apiHostname, apiStage, postData)
         authData = new JsonSlurper().parseText(result)
-        if(hasInformation(authData)){
+        if (hasInformation(authData)) {
             return authData
         }
         return null
     }
 
-    private static boolean hasInformation(def authData){
-        if(authData.awsAccessKey && authData.secretKey && authData.sessionToken
-                && authData.identityId && authData.idToken && authData.accessToken && authData.company){
+    private static boolean hasInformation(def authData) {
+        if (authData && authData.awsAccessKey && authData.secretKey && authData.sessionToken
+                && authData.identityId && authData.idToken && authData.accessToken && authData.company) {
             return true
         }
         return false
     }
 
-    private static String httpsRequest(String hostName, String resource, String postData ){
+    private static String httpsRequest(String hostName, String resource, String postData) {
 
         HttpHost target = new HttpHost(hostName, 443, "https");
 
@@ -67,7 +80,7 @@ class AWSAuthentication {
         String[] supportedProtocols = ["TLSv1", "SSLv3"]
         SSLConnectionSocketFactory sslConnectionSocketFactory = new SSLConnectionSocketFactory(sslContext, supportedProtocols, null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
 
-        Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+        Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory> create()
                 .register("http", PlainConnectionSocketFactory.INSTANCE)
                 .register("https", sslConnectionSocketFactory)
                 .build();
