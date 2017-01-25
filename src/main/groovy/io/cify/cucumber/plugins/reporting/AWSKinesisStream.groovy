@@ -1,9 +1,7 @@
 package io.cify.cucumber.plugins.reporting
 
 import com.amazonaws.auth.AWSCredentials
-import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.auth.BasicSessionCredentials
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.RegionUtils
 import com.amazonaws.services.kinesis.AmazonKinesisClient
@@ -22,8 +20,6 @@ import java.nio.charset.StandardCharsets
  */
 class AWSKinesisStream {
 
-    private static String awsSecretKey
-    private static String awsAccessKey
     private static AWSCredentials credentials
     private static String awsRegion
     private static String awsKinesisStream
@@ -31,8 +27,6 @@ class AWSKinesisStream {
 
     private static final String PARAM_CIFY_ACCESS_KEY = "cifyAccessKey"
     private static final String PARAM_CIFY_SECRET_KEY = "cifySecretKey"
-    private static final String PARAM_AWS_ACCESS_KEY = "awsAccessKey"
-    private static final String PARAM_AWS_SECRET_KEY = "awsSecretKey"
     private static final String PARAM_AWS_REGION = "awsRegion"
 
     private static String company
@@ -66,7 +60,7 @@ class AWSKinesisStream {
         awsRegion = ReportManager.getParameter(PARAM_AWS_REGION) ?: defaultAwsRegion
         println("AWS region: " + awsRegion)
 
-        if(!getAwsCredentials()) {
+        if (!getAwsCredentials()) {
             throw new Exception("AWS credentials not provided.")
         }
 
@@ -107,21 +101,11 @@ class AWSKinesisStream {
             println("Using provided cify parameters to get temporary AWS credentials.")
             def authData = AWSAuthentication.getAuthData(cifyAccessKey, cifySecretKey, awsRegion)
             credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
-            if(credentials){
+            if (credentials) {
                 company = authData?.company
                 return credentials
             }
         }
-
-        awsAccessKey = ReportManager.getParameter(PARAM_AWS_ACCESS_KEY)
-        awsSecretKey = ReportManager.getParameter(PARAM_AWS_SECRET_KEY)
-        if (awsAccessKey && awsSecretKey) {
-            println("Using AWS credentials directly from parameters.")
-            credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey)
-        } else {
-            println("Using AWS profile credentials provider.")
-            credentials = new ProfileCredentialsProvider().getCredentials()
-        }
-        return credentials
+        return null
     }
 }
