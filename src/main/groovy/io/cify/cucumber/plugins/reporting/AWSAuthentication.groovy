@@ -1,5 +1,7 @@
 package io.cify.cucumber.plugins.reporting
 
+import com.amazonaws.auth.AWSCredentials
+import com.amazonaws.auth.BasicSessionCredentials
 import groovy.json.JsonSlurper
 import org.apache.http.HttpEntity
 import org.apache.http.HttpHost
@@ -26,9 +28,17 @@ import javax.net.ssl.SSLContext
  */
 class AWSAuthentication {
 
-    private static final PARAM_CIFY_AWS_AUTH_API = "cifyAuthApi"
-    private static String apiStage = "test"
+    private static final String PARAM_ACCESS_KEY = "accessKey"
+    private static final String PARAM_SECRET_KEY = "secretKey"
+    private static final PARAM_CIFY_AWS_AUTH_SERVICE = "authService"
+    private static String awsAuthService
+    private static final PARAM_CIFY_AWS_AUTH_SERVICE_STAGE = "serviceStage"
+    private static String authServiceStage
+    private static final String PARAM_SERVICE_REGION = "serviceRegion"
+    public static String awsRegion
+    public static String company
     private static def authData
+    public static AWSCredentials credentials
 
     /**
      * Returns current authentication data
@@ -38,33 +48,65 @@ class AWSAuthentication {
     public static def getAuthData() {
         if (hasInformation(authData)) {
             return authData
+        } else {
+            initParameters()
         }
         return null
     }
 
     /**
-     * Sends request to AWS service and returns authentication data
+     * Initializing AWS parameters
+     */
+    private static void initParameters() {
+        awsRegion = ReportManager.getParameter(PARAM_SERVICE_REGION)
+        println("Region: " + awsRegion)
+        if (!awsRegion) {
+            throw new Exception("Service region is not provided.")
+        }
+        if (!getAwsCredentials()) {
+            throw new Exception("Reporter credentials not provided.")
+        }
+    }
+
+    /**
+     * Creates and returns AWS credentials
+     * @return AWSCredentials
+     */
+    private static AWSCredentials getAwsCredentials() {
+        String cifyAccessKey = ReportManager.getParameter(PARAM_ACCESS_KEY)
+        String cifySecretKey = ReportManager.getParameter(PARAM_SECRET_KEY)
+        if (cifyAccessKey && cifySecretKey) {
+            println("Using provided reporter parameters to get temporary credentials.")
+            def authData = requestAuthData(cifyAccessKey, cifySecretKey, awsRegion)
+            credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
+            if (credentials) {
+                company = authData?.company
+                return credentials
+            }
+        }
+        return null
+    }
+
+    /**
+     * Sends request to AWS service and return authentication data
      *
      * @param username
      * @param password
      * @param awsRegion
      * @return json object
      */
-    public static def getAuthData(String username, String password, String awsRegion) {
+    private static def requestAuthData(String username, String password, String awsRegion) {
         if (!username || !password || !awsRegion) {
             return null
         }
 
-        if (hasInformation(authData)) {
-            return authData
+        awsAuthService = ReportManager.getParameter(PARAM_CIFY_AWS_AUTH_SERVICE)
+        authServiceStage = ReportManager.getParameter(PARAM_CIFY_AWS_AUTH_SERVICE_STAGE)
+        if (!awsAuthService || !authServiceStage) {
+            throw new Exception("AWS authentication service info not provided.")
         }
 
-        String awsAuthAPI = ReportManager.getParameter(PARAM_CIFY_AWS_AUTH_API)
-        if (!awsAuthAPI) {
-            throw new Exception("AWS authentication API not provided.")
-        }
-
-        String apiHostname = "${awsAuthAPI}.execute-api.${awsRegion}.amazonaws.com"
+        String apiHostname = "${awsAuthService}.execute-api.${awsRegion}.amazonaws.com"
         String postData = "{\n" +
                 "  \"params\": {\n" +
                 "    \"login\": {\n" +
@@ -74,7 +116,7 @@ class AWSAuthentication {
                 "  }\n" +
                 "}"
 
-        String result = httpsRequest(apiHostname, apiStage, postData)
+        String result = httpsRequest(apiHostname, authServiceStage, postData)
         authData = new JsonSlurper().parseText(result)
         if (hasInformation(authData)) {
             return authData
