@@ -164,6 +164,8 @@ class CifyReporterPlugin implements Formatter, Reporter {
 
     @Override
     void after(Match match, Result result) {
+        String scenarioId = trm?.getActiveScenario()?.scenarioId
+        ReportManager.uploadScreenshots(scenarioId)
         ReportManager.report(trm?.scenarioFinished(result.status, result.errorMessage))
     }
 
