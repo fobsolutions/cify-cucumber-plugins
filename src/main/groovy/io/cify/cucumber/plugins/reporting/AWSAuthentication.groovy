@@ -51,7 +51,7 @@ class AWSAuthentication {
         } else {
             initParameters()
         }
-        return null
+        return authData
     }
 
     /**
@@ -59,7 +59,6 @@ class AWSAuthentication {
      */
     private static void initParameters() {
         awsRegion = ReportManager.getParameter(PARAM_SERVICE_REGION)
-        println("Region: " + awsRegion)
         if (!awsRegion) {
             throw new Exception("Service region is not provided.")
         }
@@ -76,15 +75,15 @@ class AWSAuthentication {
         String cifyAccessKey = ReportManager.getParameter(PARAM_ACCESS_KEY)
         String cifySecretKey = ReportManager.getParameter(PARAM_SECRET_KEY)
         if (cifyAccessKey && cifySecretKey) {
-            println("Using provided reporter parameters to get temporary credentials.")
             def authData = requestAuthData(cifyAccessKey, cifySecretKey, awsRegion)
             credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
             if (credentials) {
                 company = authData?.company
                 return credentials
+            } else {
+                return null
             }
         }
-        return null
     }
 
     /**
@@ -120,8 +119,9 @@ class AWSAuthentication {
         authData = new JsonSlurper().parseText(result)
         if (hasInformation(authData)) {
             return authData
+        } else {
+            return null
         }
-        return null
     }
 
     private static boolean hasInformation(def authData) {
@@ -162,7 +162,6 @@ class AWSAuthentication {
         } finally {
             response.close()
         }
-
         return result
     }
 

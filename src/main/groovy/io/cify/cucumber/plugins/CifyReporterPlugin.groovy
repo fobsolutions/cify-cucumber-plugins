@@ -3,6 +3,7 @@ package io.cify.cucumber.plugins
 import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
+import groovy.json.JsonBuilder
 import io.cify.cucumber.plugins.reporting.ReportManager
 import io.cify.framework.reporting.TestReportManager
 
@@ -10,6 +11,7 @@ import io.cify.framework.reporting.TestReportManager
  * Created by FOB Solutions
  *
  * This class is responsible for providing cucumber run information to cify framework
+ * and reporting test results
  */
 class CifyReporterPlugin implements Formatter, Reporter {
 
@@ -41,7 +43,10 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void uri(String uri) {
-
+        if (getParameter("suiteFinished") == 'true') {
+            suiteCompletedReport()
+            System.exit(0)
+        }
     }
 
     /**
@@ -51,6 +56,7 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void feature(Feature feature) {
+
         String cucumberRunId = getParameter("runId")
         trm = TestReportManager.getTestReportManager()
         trm.testRunStarted(feature.name, cucumberRunId, feature.id)
@@ -137,7 +143,6 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void close() {
-
     }
 
     /**
@@ -197,5 +202,22 @@ class CifyReporterPlugin implements Formatter, Reporter {
         } else {
             return null
         }
+    }
+
+    /**
+     * Report about testsuite end
+     */
+    private static void suiteCompletedReport() {
+        String projectName = getParameter("projectName")
+        String suiteName = getParameter("suiteName")
+        String testsuiteId = getParameter("runId")
+        def jsonBuilder = new JsonBuilder()
+        jsonBuilder.suite(
+                projectName: projectName,
+                testsuiteId: testsuiteId,
+                suiteName: suiteName,
+                status: "completed"
+        )
+        ReportManager.report(jsonBuilder.toString())
     }
 }

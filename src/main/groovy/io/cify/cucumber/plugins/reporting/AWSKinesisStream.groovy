@@ -26,12 +26,17 @@ class AWSKinesisStream {
      * @return String
      */
     public static String exportToAwsKinesisStream(String data) {
+        if (!AWSAuthentication.getAuthData()) {
+            throw new Exception("Authentication failed")
+        }
+        String token = AWSAuthentication.getAuthData()?.idToken
+
         def result = new JsonSlurper().parseText(data) as Map
         String partitionKey = result?.keySet()[0].toString()
         if (partitionKey) {
             def json = new JsonBuilder()
             json.data(
-                    idToken: AWSAuthentication.getAuthData()?.idToken,
+                    idToken: token,
                     report: data
             )
             return putKinesisStreamRecord(json.toString(), partitionKey)
@@ -48,7 +53,6 @@ class AWSKinesisStream {
      */
     private static String putKinesisStreamRecord(String data, String partitionKey) {
         String awsKinesisStream = AWSAuthentication.company + STREAM_POSTFIX
-        println("Stream: " + awsKinesisStream)
         String newPartitionKey = "<company>$AWSAuthentication.company<company><partition>$partitionKey<partition>"
         AmazonKinesisClient kinesisClient = new AmazonKinesisClient(AWSAuthentication.credentials)
         Region region = RegionUtils.getRegion(AWSAuthentication.awsRegion)
@@ -60,7 +64,6 @@ class AWSKinesisStream {
         putRecordRequest.setStreamName(awsKinesisStream)
 
         PutRecordResult result = kinesisClient.putRecord(putRecordRequest)
-        println("Record number: " + result.getSequenceNumber())
         return result.getSequenceNumber()
     }
 
