@@ -27,6 +27,7 @@ class AWSS3 {
 
     private static final String BUCKET_NAME = "cify-reporting-screenshots"
     private static final int TAG_MAX_SIZE = 255
+    private static boolean includeToken = false
 
     /**
      * Uploads files from given directory to S3 bucket in parallel using temporary AWS credentials
@@ -66,7 +67,7 @@ class AWSS3 {
                 public void run() {
                     def dimensions = getImageDimension(it as File)
                     String keyName = company + "/" + dimensions.width + "x" + dimensions.height + "_" + it.name
-                    List<Tag> tags = getTags(company, token, it.path)
+                    List<Tag> tags = getTags(company, token)
                     try {
                         PutObjectRequest por = new PutObjectRequest(BUCKET_NAME, keyName, it as File)
                         por.setTagging(new ObjectTagging(tags));
@@ -103,17 +104,13 @@ class AWSS3 {
      * @param filepath
      * @return List < Tag >
      */
-    private static List<Tag> getTags(String company, String token, String filepath) {
-/*        def file = new File(filepath)
-        def dimensions = getImageDimension(file)
-        String imageDimensions = dimensions.width + "x" + dimensions.height*/
-
+    private static List<Tag> getTags(String company, String token) {
         List<Tag> tags = new ArrayList<Tag>()
         tags.add(new Tag("company", company))
-//      tags.add(new Tag("dimensions", imageDimensions))
-
-        token.split("(?<=\\G.{$TAG_MAX_SIZE})").eachWithIndex { item, index ->
-            tags.add(new Tag(index + "_idtokenpart", item))
+        if(includeToken) {
+            token.split("(?<=\\G.{$TAG_MAX_SIZE})").eachWithIndex { item, index ->
+                tags.add(new Tag(index + "_idtokenpart", item))
+            }
         }
         return tags
     }
