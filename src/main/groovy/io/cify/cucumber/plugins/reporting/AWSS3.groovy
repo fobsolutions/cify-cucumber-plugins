@@ -11,13 +11,6 @@ import com.amazonaws.services.s3.model.PutObjectResult
 import com.amazonaws.services.s3.model.Tag
 import groovy.io.FileType
 
-import javax.imageio.ImageIO
-import javax.imageio.ImageReader
-import javax.imageio.stream.FileImageInputStream
-import javax.imageio.stream.ImageInputStream
-import java.awt.*
-import java.util.List
-
 /**
  * Created by FOB Solutions
  *
@@ -65,23 +58,30 @@ class AWSS3 {
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    def dimensions = getImageDimension(it as File)
-                    String keyName = company + "/" + dimensions.width + "x" + dimensions.height + "_" + it.name
+                    String keyName = company + "/" + "widthxheight" + "_" + it.name
                     List<Tag> tags = getTags(company, token)
-                    try {
-                        PutObjectRequest por = new PutObjectRequest(BUCKET_NAME, keyName, it as File)
-                        por.setTagging(new ObjectTagging(tags));
-                        PutObjectResult res = s3Client.putObject(por)
-                        if (res) {
-                            uploaded.add(it.name)
-                            it.delete()
+                    boolean success = false
+                    int attempts = 0
+                    while(!success) {
+                        attempts++
+                        try {
+                            PutObjectRequest por = new PutObjectRequest(BUCKET_NAME, keyName, it as File)
+                            por.setTagging(new ObjectTagging(tags));
+                            PutObjectResult res = s3Client.putObject(por)
+                            if (res) {
+                                uploaded.add(it.name)
+                                it.delete()
+                            }
+                        } catch (AmazonServiceException ase) {
+                            println("Screenshot upload AmazonServiceException: " + ase.getMessage())
+                        } catch (AmazonClientException ase) {
+                            println("Screenshot upload AmazonClientException: " + ase.getMessage())
+                        } catch (Exception e) {
+                            println("Screenshot upload Exception: " + e.getMessage())
                         }
-                    } catch (AmazonServiceException ase) {
-                        println("Screenshot upload AmazonServiceException: " + ase.getMessage())
-                    } catch (AmazonClientException ase) {
-                        println("Screenshot upload AmazonClientException: " + ase.getMessage())
-                    } catch (Exception e) {
-                        println("Screenshot upload Exception: " + e.getMessage())
+                        if(attempts==3){
+                            break
+                        }
                     }
                 }
             })
@@ -114,34 +114,4 @@ class AWSS3 {
         }
         return tags
     }
-
-    /**
-     * Gets image dimensions for given file
-     *
-     * @param imgFile image file
-     * @return dimensions of image
-     */
-    private static Dimension getImageDimension(File imgFile) {
-        int pos = imgFile.getName().lastIndexOf(".")
-        if (pos == -1)
-            throw new IOException("No extension for file: " + imgFile.getAbsolutePath())
-        String suffix = imgFile.getName().substring(pos + 1)
-        Iterator<ImageReader> iter = ImageIO.getImageReadersBySuffix(suffix)
-        while (iter.hasNext()) {
-            ImageReader reader = iter.next()
-            try {
-                ImageInputStream stream = new FileImageInputStream(imgFile)
-                reader.setInput(stream)
-                int width = reader.getWidth(reader.getMinIndex())
-                int height = reader.getHeight(reader.getMinIndex())
-                return new Dimension(width, height)
-            } catch (IOException e) {
-                println("Error reading: " + imgFile.getAbsolutePath() + " message:" + e.getMessage())
-            } finally {
-                reader.dispose()
-            }
-        }
-        throw new Exception("Cannot get dimensions. Unknown image file: " + imgFile.getAbsolutePath())
-    }
-
 }
