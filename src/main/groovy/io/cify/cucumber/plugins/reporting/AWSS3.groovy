@@ -55,26 +55,7 @@ class AWSS3 {
             fileList << file
         }
 
-        def filteredFileList = []
-        String hash = ""
-        fileList.eachWithIndex{ item, index ->
-            if(index == 0){
-                hash = getFileMD5Hash(item as File)
-                filteredFileList.add(item)
-            } else {
-                println("current screenshot hash:$hash")
-                String nextHash = getFileMD5Hash(item as File)
-                if(hash.equalsIgnoreCase(nextHash)){
-                    item.delete()
-                    println("next screenshot hash:$nextHash" + " delete duplicated file:"+item.name)
-                } else{
-                    filteredFileList.add(item)
-                    println("next screenshot hash:$nextHash" + " file will be uploaded:"+item.name)
-                    hash = nextHash
-                }
-            }
-        }
-
+        def filteredFileList = filterDuplicateScreenshots(fileList)
         def uploaded = []
         def threadList = []
         filteredFileList.each {
@@ -139,6 +120,41 @@ class AWSS3 {
         return tags
     }
 
+    /**
+     * Iterates list, removes file if MD5 hash is equal to previous file hash
+     *
+     * @param fileList
+     * @return list of filtered files
+     */
+    private static List filterDuplicateScreenshots(List fileList){
+        def filteredFileList = []
+        String hash = ""
+        fileList.eachWithIndex{ item, index ->
+            if(index == 0){
+                hash = getFileMD5Hash(item as File)
+                filteredFileList.add(item)
+            } else {
+                println("current screenshot hash:$hash")
+                String nextHash = getFileMD5Hash(item as File)
+                if(hash.equalsIgnoreCase(nextHash)){
+                    item.delete()
+                    println("next screenshot hash:$nextHash" + " delete duplicated file:"+item.name)
+                } else{
+                    filteredFileList.add(item)
+                    println("next screenshot hash:$nextHash" + " file will be uploaded:"+item.name)
+                    hash = nextHash
+                }
+            }
+        }
+        return filteredFileList
+    }
+
+    /**
+     * Returns MD5 hash of given file
+     *
+     * @param file
+     * @return String MD5 hash
+     */
     private static String getFileMD5Hash(File file){
         byte[] hash = MessageDigest.getInstance("MD5").digest(file.bytes)
         return DatatypeConverter.printHexBinary(hash)
