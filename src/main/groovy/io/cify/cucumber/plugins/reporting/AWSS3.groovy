@@ -11,6 +11,9 @@ import com.amazonaws.services.s3.model.PutObjectResult
 import com.amazonaws.services.s3.model.Tag
 import groovy.io.FileType
 
+import javax.xml.bind.DatatypeConverter
+import java.security.MessageDigest
+
 /**
  * Created by FOB Solutions
  *
@@ -52,9 +55,29 @@ class AWSS3 {
             fileList << file
         }
 
+        def filteredFileList = []
+        String hash = ""
+        fileList.eachWithIndex{ item, index ->
+            if(index == 0){
+                hash = getFileMD5Hash(item as File)
+                filteredFileList.add(item)
+            } else {
+                println("current screenshot hash:$hash")
+                String nextHash = getFileMD5Hash(item as File)
+                if(hash.equalsIgnoreCase(nextHash)){
+                    item.delete()
+                    println("next screenshot hash:$nextHash" + " delete duplicated file:"+item.name)
+                } else{
+                    filteredFileList.add(item)
+                    println("next screenshot hash:$nextHash" + " file will be uploaded:"+item.name)
+                    hash = nextHash
+                }
+            }
+        }
+
         def uploaded = []
         def threadList = []
-        fileList.each {
+        filteredFileList.each {
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -71,6 +94,7 @@ class AWSS3 {
                             if (res) {
                                 uploaded.add(it.name)
                                 it.delete()
+                                success = true
                             }
                         } catch (AmazonServiceException ase) {
                             println("Screenshot upload AmazonServiceException: " + ase.getMessage())
@@ -113,5 +137,10 @@ class AWSS3 {
             }
         }
         return tags
+    }
+
+    private static String getFileMD5Hash(File file){
+        byte[] hash = MessageDigest.getInstance("MD5").digest(file.bytes)
+        return DatatypeConverter.printHexBinary(hash)
     }
 }
