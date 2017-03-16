@@ -11,12 +11,8 @@ import com.amazonaws.services.s3.model.PutObjectResult
 import com.amazonaws.services.s3.model.Tag
 import groovy.io.FileType
 
-import javax.imageio.ImageIO
-import javax.imageio.ImageReader
-import javax.imageio.stream.FileImageInputStream
-import javax.imageio.stream.ImageInputStream
-import java.awt.*
-import java.util.List
+import javax.xml.bind.DatatypeConverter
+import java.security.MessageDigest
 
 /**
  * Created by FOB Solutions
@@ -59,29 +55,38 @@ class AWSS3 {
             fileList << file
         }
 
+        def filteredFileList = filterDuplicateScreenshots(fileList)
         def uploaded = []
         def threadList = []
-        fileList.each {
+        filteredFileList.each {
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    def dimensions = getImageDimension(it as File)
-                    String keyName = company + "/" + dimensions.width + "x" + dimensions.height + "_" + it.name
+                    String keyName = company + "/" + "widthxheight" + "_" + it.name
                     List<Tag> tags = getTags(company, token)
-                    try {
-                        PutObjectRequest por = new PutObjectRequest(BUCKET_NAME, keyName, it as File)
-                        por.setTagging(new ObjectTagging(tags));
-                        PutObjectResult res = s3Client.putObject(por)
-                        if (res) {
-                            uploaded.add(it.name)
-                            it.delete()
+                    boolean success = false
+                    int attempts = 0
+                    while(!success) {
+                        attempts++
+                        try {
+                            PutObjectRequest por = new PutObjectRequest(BUCKET_NAME, keyName, it as File)
+                            por.setTagging(new ObjectTagging(tags));
+                            PutObjectResult res = s3Client.putObject(por)
+                            if (res) {
+                                uploaded.add(it.name)
+                                it.delete()
+                                success = true
+                            }
+                        } catch (AmazonServiceException ase) {
+                            println("Screenshot upload AmazonServiceException: " + ase.getMessage())
+                        } catch (AmazonClientException ase) {
+                            println("Screenshot upload AmazonClientException: " + ase.getMessage())
+                        } catch (Exception e) {
+                            println("Screenshot upload Exception: " + e.getMessage())
                         }
-                    } catch (AmazonServiceException ase) {
-                        println("Screenshot upload AmazonServiceException: " + ase.getMessage())
-                    } catch (AmazonClientException ase) {
-                        println("Screenshot upload AmazonClientException: " + ase.getMessage())
-                    } catch (Exception e) {
-                        println("Screenshot upload Exception: " + e.getMessage())
+                        if(attempts==3){
+                            break
+                        }
                     }
                 }
             })
@@ -116,32 +121,42 @@ class AWSS3 {
     }
 
     /**
-     * Gets image dimensions for given file
+     * Iterates list, removes file if MD5 hash is equal to previous file hash
      *
-     * @param imgFile image file
-     * @return dimensions of image
+     * @param fileList
+     * @return list of filtered files
      */
-    private static Dimension getImageDimension(File imgFile) {
-        int pos = imgFile.getName().lastIndexOf(".")
-        if (pos == -1)
-            throw new IOException("No extension for file: " + imgFile.getAbsolutePath())
-        String suffix = imgFile.getName().substring(pos + 1)
-        Iterator<ImageReader> iter = ImageIO.getImageReadersBySuffix(suffix)
-        while (iter.hasNext()) {
-            ImageReader reader = iter.next()
-            try {
-                ImageInputStream stream = new FileImageInputStream(imgFile)
-                reader.setInput(stream)
-                int width = reader.getWidth(reader.getMinIndex())
-                int height = reader.getHeight(reader.getMinIndex())
-                return new Dimension(width, height)
-            } catch (IOException e) {
-                println("Error reading: " + imgFile.getAbsolutePath() + " message:" + e.getMessage())
-            } finally {
-                reader.dispose()
+    private static List filterDuplicateScreenshots(List fileList){
+        def filteredFileList = []
+        String hash = ""
+        fileList.eachWithIndex{ item, index ->
+            if(index == 0){
+                hash = getFileMD5Hash(item as File)
+                filteredFileList.add(item)
+            } else {
+                println("current screenshot hash:$hash")
+                String nextHash = getFileMD5Hash(item as File)
+                if(hash.equalsIgnoreCase(nextHash)){
+                    item.delete()
+                    println("next screenshot hash:$nextHash" + " delete duplicated file:"+item.name)
+                } else{
+                    filteredFileList.add(item)
+                    println("next screenshot hash:$nextHash" + " file will be uploaded:"+item.name)
+                    hash = nextHash
+                }
             }
         }
-        throw new Exception("Cannot get dimensions. Unknown image file: " + imgFile.getAbsolutePath())
+        return filteredFileList
     }
 
+    /**
+     * Returns MD5 hash of given file
+     *
+     * @param file
+     * @return String MD5 hash
+     */
+    private static String getFileMD5Hash(File file){
+        byte[] hash = MessageDigest.getInstance("MD5").digest(file.bytes)
+        return DatatypeConverter.printHexBinary(hash)
+    }
 }
