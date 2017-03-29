@@ -29,7 +29,6 @@ import javax.net.ssl.SSLContext
 class AWSAuthentication {
 
     private static final String PARAM_ACCESS_KEY = "accessKey"
-    private static final String PARAM_SECRET_KEY = "secretKey"
     private static final PARAM_CIFY_AWS_AUTH_SERVICE = "authService"
     private static String awsAuthService
     private static final PARAM_CIFY_AWS_AUTH_SERVICE_STAGE = "serviceStage"
@@ -73,9 +72,8 @@ class AWSAuthentication {
      */
     private static AWSCredentials getAwsCredentials() {
         String cifyAccessKey = ReportManager.getParameter(PARAM_ACCESS_KEY)
-        String cifySecretKey = ReportManager.getParameter(PARAM_SECRET_KEY)
-        if (cifyAccessKey && cifySecretKey) {
-            def authData = requestAuthData(cifyAccessKey, cifySecretKey, awsRegion)
+        if (cifyAccessKey) {
+            def authData = requestAuthData(cifyAccessKey, awsRegion)
             credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
             if (credentials) {
                 company = authData?.company
@@ -89,13 +87,12 @@ class AWSAuthentication {
     /**
      * Sends request to AWS service and return authentication data
      *
-     * @param username
-     * @param password
+     * @param cifyAccessKey
      * @param awsRegion
      * @return json object
      */
-    private static def requestAuthData(String username, String password, String awsRegion) {
-        if (!username || !password || !awsRegion) {
+    private static def requestAuthData(String cifyAccessKey, String awsRegion) {
+        if (!cifyAccessKey || !awsRegion) {
             return null
         }
 
@@ -109,8 +106,7 @@ class AWSAuthentication {
         String postData = "{\n" +
                 "  \"params\": {\n" +
                 "    \"login\": {\n" +
-                "      \"username\": \"$username\",\n" +
-                "      \"password\": \"$password\"\n" +
+                "      \"cifyAccessKey\": \"$cifyAccessKey\"\n" +
                 "    }\n" +
                 "  }\n" +
                 "}"
@@ -126,7 +122,7 @@ class AWSAuthentication {
 
     private static boolean hasInformation(def authData) {
         if (authData && authData.awsAccessKey && authData.secretKey && authData.sessionToken
-                && authData.identityId && authData.idToken && authData.accessToken && authData.company) {
+                && authData.idToken && authData.company) {
             return true
         }
         return false
