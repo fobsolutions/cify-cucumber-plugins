@@ -1,8 +1,8 @@
 package io.cify.cucumber.plugins.reporting
 
-import com.amazonaws.regions.Region
-import com.amazonaws.regions.RegionUtils
-import com.amazonaws.services.kinesis.AmazonKinesisClient
+import com.amazonaws.auth.AWSStaticCredentialsProvider
+import com.amazonaws.services.kinesis.AmazonKinesis
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder
 import com.amazonaws.services.kinesis.model.PutRecordRequest
 import com.amazonaws.services.kinesis.model.PutRecordResult
 import groovy.json.JsonBuilder
@@ -54,9 +54,11 @@ class AWSKinesisStream {
     private static String putKinesisStreamRecord(String data, String partitionKey) {
         String awsKinesisStream = AWSAuthentication.company + STREAM_POSTFIX
         String newPartitionKey = "<company>$AWSAuthentication.company<company><partition>$partitionKey<partition>"
-        AmazonKinesisClient kinesisClient = new AmazonKinesisClient(AWSAuthentication.credentials)
-        Region region = RegionUtils.getRegion(AWSAuthentication.awsRegion)
-        kinesisClient.setRegion(region)
+
+        AmazonKinesis kinesisClient = AmazonKinesisClientBuilder.standard()
+                .withCredentials(new AWSStaticCredentialsProvider(AWSAuthentication.credentials))
+                .withRegion(AWSAuthentication.awsRegion)
+                .build()
 
         PutRecordRequest putRecordRequest = new PutRecordRequest()
         putRecordRequest.setData(ByteBuffer.wrap(data.getBytes(StandardCharsets.UTF_8)))
