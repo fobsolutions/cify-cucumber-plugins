@@ -21,7 +21,6 @@ import java.security.MessageDigest
  */
 class AWSS3 {
 
-    private static final String BUCKET_NAME = "cify-reporting-screenshots"
     private static final int TAG_MAX_SIZE = 255
     private static boolean includeToken = false
 
@@ -39,7 +38,6 @@ class AWSS3 {
         }
 
         def credentials = AWSAuthentication.credentials
-        String company = AWSAuthentication.company
         String token = AWSAuthentication.getAuthData()?.idToken
 
         AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
@@ -64,14 +62,14 @@ class AWSS3 {
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    String keyName = company + "/" + "widthxheight" + "_" + it.name
-                    List<Tag> tags = getTags(company, token)
+                    String keyName = AWSAuthentication.authData.companyId + "/" + it.name
+                    List<Tag> tags = getTags(AWSAuthentication.authData.companyId, token)
                     boolean success = false
                     int attempts = 0
                     while (!success) {
                         attempts++
                         try {
-                            PutObjectRequest por = new PutObjectRequest(BUCKET_NAME, keyName, it as File)
+                            PutObjectRequest por = new PutObjectRequest(AWSAuthentication.authData.bucket, keyName, it as File)
                             por.setTagging(new ObjectTagging(tags));
                             PutObjectResult res = s3Client.putObject(por)
                             if (res) {
@@ -106,14 +104,14 @@ class AWSS3 {
     /**
      * Returns list of Tags with screenshot information
      *
-     * @param company
+     * @param companyId
      * @param token
      * @param filepath
      * @return List < Tag >
      */
-    private static List<Tag> getTags(String company, String token) {
+    private static List<Tag> getTags(String companyId, String token) {
         List<Tag> tags = new ArrayList<Tag>()
-        tags.add(new Tag("company", company))
+        tags.add(new Tag("companyId", companyId))
         if (includeToken) {
             token.split("(?<=\\G.{$TAG_MAX_SIZE})").eachWithIndex { item, index ->
                 tags.add(new Tag(index + "_idtokenpart", item))

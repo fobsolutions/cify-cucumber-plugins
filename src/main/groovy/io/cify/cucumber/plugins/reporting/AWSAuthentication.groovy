@@ -35,7 +35,6 @@ class AWSAuthentication {
     private static String authServiceStage
     private static final String PARAM_SERVICE_REGION = "serviceRegion"
     public static String awsRegion
-    public static String company
     private static def authData
     public static AWSCredentials credentials
 
@@ -76,7 +75,6 @@ class AWSAuthentication {
             def authData = requestAuthData(cifyAccessKey, awsRegion)
             credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
             if (credentials) {
-                company = authData?.company
                 return credentials
             } else {
                 return null
@@ -122,7 +120,8 @@ class AWSAuthentication {
 
     private static boolean hasInformation(def authData) {
         if (authData && authData.awsAccessKey && authData.secretKey && authData.sessionToken
-                && authData.idToken && authData.company) {
+                && authData.idToken && authData.companyId && authData.stream
+                && authData.bucket) {
             return true
         }
         return false
