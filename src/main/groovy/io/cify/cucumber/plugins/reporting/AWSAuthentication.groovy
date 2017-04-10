@@ -5,6 +5,7 @@ import com.amazonaws.auth.BasicSessionCredentials
 import groovy.json.JsonSlurper
 import org.apache.http.HttpEntity
 import org.apache.http.HttpHost
+import org.apache.http.StatusLine
 import org.apache.http.client.methods.CloseableHttpResponse
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.config.Registry
@@ -44,41 +45,32 @@ class AWSAuthentication {
      * @return json object
      */
     public static def getAuthData() {
-        if (hasInformation(authData)) {
+        if (validateAuthData(authData) && credentials) {
             return authData
         } else {
-            initParameters()
+            setAwsCredentials()
+            return authData
         }
-        return authData
-    }
 
-    /**
-     * Initializing AWS parameters
-     */
-    private static void initParameters() {
-        awsRegion = ReportManager.getParameter(PARAM_SERVICE_REGION)
-        if (!awsRegion) {
-            throw new Exception("Service region is not provided.")
-        }
-        if (!getAwsCredentials()) {
-            throw new Exception("Reporter credentials not provided.")
-        }
     }
 
     /**
      * Creates and returns AWS credentials
      * @return AWSCredentials
      */
-    private static AWSCredentials getAwsCredentials() {
+    private static setAwsCredentials() {
         String cifyAccessKey = ReportManager.getParameter(PARAM_ACCESS_KEY)
-        if (cifyAccessKey) {
+        awsRegion = ReportManager.getParameter(PARAM_SERVICE_REGION)
+        if (cifyAccessKey && awsRegion) {
             def authData = requestAuthData(cifyAccessKey, awsRegion)
             credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
-            if (credentials) {
-                return credentials
-            } else {
-                return null
+            if (!credentials) {
+                println("Authentication failed. Unable to get credentials")
+                System.exit(0)
             }
+        } else {
+            println("Authentication failed. Access key or region not provided")
+            System.exit(0)
         }
     }
 
@@ -90,14 +82,11 @@ class AWSAuthentication {
      * @return json object
      */
     private static def requestAuthData(String cifyAccessKey, String awsRegion) {
-        if (!cifyAccessKey || !awsRegion) {
-            return null
-        }
-
         awsAuthService = ReportManager.getParameter(PARAM_CIFY_AWS_AUTH_SERVICE)
         authServiceStage = ReportManager.getParameter(PARAM_CIFY_AWS_AUTH_SERVICE_STAGE)
         if (!awsAuthService || !authServiceStage) {
-            throw new Exception("AWS authentication service info not provided.")
+            println("Authentication service info not provided.")
+            System.exit(0)
         }
 
         String apiHostname = "${awsAuthService}.execute-api.${awsRegion}.amazonaws.com"
@@ -109,25 +98,20 @@ class AWSAuthentication {
                 "  }\n" +
                 "}"
 
-        String result = httpsRequest(apiHostname, authServiceStage, postData)
-        authData = new JsonSlurper().parseText(result)
-        if (hasInformation(authData)) {
-            return authData
-        } else {
-            return null
-        }
+        authData = httpsRequest(apiHostname, authServiceStage, postData)
+        return validateAuthData(authData)
     }
 
-    private static boolean hasInformation(def authData) {
+    private static def validateAuthData(def authData) {
         if (authData && authData.awsAccessKey && authData.secretKey && authData.sessionToken
                 && authData.idToken && authData.companyId && authData.stream
                 && authData.bucket) {
-            return true
+            return authData
         }
-        return false
+        return null
     }
 
-    private static String httpsRequest(String hostName, String resource, String postData) {
+    private static def httpsRequest(String hostName, String resource, String postData) {
         HttpHost target = new HttpHost(hostName, 443, "https")
         SSLContext sslContext = SSLContexts.createSystemDefault()
         String[] supportedProtocols = ["TLSv1", "SSLv3"]
@@ -149,15 +133,27 @@ class AWSAuthentication {
         httpPost.setEntity(postDataEntity)
         CloseableHttpResponse response = httpClient.execute(target, httpPost)
 
-        String result = ""
+        def statusCode = null
+        def json = null
         try {
+            StatusLine sl = response.getStatusLine()
+            statusCode = sl.getStatusCode()
             HttpEntity entity = response.getEntity()
-            result = EntityUtils.toString(entity)
+            String result = EntityUtils.toString(entity)
             EntityUtils.consume(entity)
+            json = new JsonSlurper().parseText(result)
         } finally {
             response.close()
         }
-        return result
+        if(statusCode != 200){
+            if(json.message){
+                println("Reporter: " + json.message)
+            } else {
+                println("Reporter: authentication failed")
+            }
+            System.exit(0)
+        }
+        return json
     }
 
 }
