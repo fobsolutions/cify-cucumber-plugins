@@ -2,9 +2,9 @@ package io.cify.cucumber.plugins.reporting
 
 import com.amazonaws.AmazonClientException
 import com.amazonaws.AmazonServiceException
-import com.amazonaws.regions.Region
-import com.amazonaws.regions.RegionUtils
-import com.amazonaws.services.s3.AmazonS3Client
+import com.amazonaws.auth.AWSStaticCredentialsProvider
+import com.amazonaws.services.s3.AmazonS3
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.ObjectTagging
 import com.amazonaws.services.s3.model.PutObjectRequest
 import com.amazonaws.services.s3.model.PutObjectResult
@@ -21,7 +21,6 @@ import java.security.MessageDigest
  */
 class AWSS3 {
 
-    private static final String BUCKET_NAME = "cify-reporting-screenshots"
     private static final int TAG_MAX_SIZE = 255
     private static boolean includeToken = false
 
@@ -39,12 +38,13 @@ class AWSS3 {
         }
 
         def credentials = AWSAuthentication.credentials
-        Region region = RegionUtils.getRegion(AWSAuthentication.awsRegion)
-        String company = AWSAuthentication.company
         String token = AWSAuthentication.getAuthData()?.idToken
 
-        AmazonS3Client s3Client = new AmazonS3Client(credentials)
-        s3Client.setRegion(region)
+        AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
+                .withCredentials(new AWSStaticCredentialsProvider(credentials))
+                .withRegion(AWSAuthentication.awsRegion)
+                .build()
+
         println("S3 client created.")
 
         long uploadStarted = System.currentTimeMillis()
@@ -62,14 +62,14 @@ class AWSS3 {
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    String keyName = company + "/" + "widthxheight" + "_" + it.name
-                    List<Tag> tags = getTags(company, token)
+                    String keyName = AWSAuthentication.authData.companyId + "/" + it.name
+                    List<Tag> tags = getTags(AWSAuthentication.authData.companyId, token)
                     boolean success = false
                     int attempts = 0
-                    while(!success) {
+                    while (!success) {
                         attempts++
                         try {
-                            PutObjectRequest por = new PutObjectRequest(BUCKET_NAME, keyName, it as File)
+                            PutObjectRequest por = new PutObjectRequest(AWSAuthentication.authData.bucket, keyName, it as File)
                             por.setTagging(new ObjectTagging(tags));
                             PutObjectResult res = s3Client.putObject(por)
                             if (res) {
@@ -84,7 +84,7 @@ class AWSS3 {
                         } catch (Exception e) {
                             println("Screenshot upload Exception: " + e.getMessage())
                         }
-                        if(attempts==3){
+                        if (attempts == 3) {
                             break
                         }
                     }
@@ -104,15 +104,15 @@ class AWSS3 {
     /**
      * Returns list of Tags with screenshot information
      *
-     * @param company
+     * @param companyId
      * @param token
      * @param filepath
      * @return List < Tag >
      */
-    private static List<Tag> getTags(String company, String token) {
+    private static List<Tag> getTags(String companyId, String token) {
         List<Tag> tags = new ArrayList<Tag>()
-        tags.add(new Tag("company", company))
-        if(includeToken) {
+        tags.add(new Tag("companyId", companyId))
+        if (includeToken) {
             token.split("(?<=\\G.{$TAG_MAX_SIZE})").eachWithIndex { item, index ->
                 tags.add(new Tag(index + "_idtokenpart", item))
             }
@@ -126,22 +126,22 @@ class AWSS3 {
      * @param fileList
      * @return list of filtered files
      */
-    private static List filterDuplicateScreenshots(List fileList){
+    private static List filterDuplicateScreenshots(List fileList) {
         def filteredFileList = []
         String hash = ""
-        fileList.eachWithIndex{ item, index ->
-            if(index == 0){
+        fileList.eachWithIndex { item, index ->
+            if (index == 0) {
                 hash = getFileMD5Hash(item as File)
                 filteredFileList.add(item)
             } else {
                 println("current screenshot hash:$hash")
                 String nextHash = getFileMD5Hash(item as File)
-                if(hash.equalsIgnoreCase(nextHash)){
+                if (hash.equalsIgnoreCase(nextHash)) {
                     item.delete()
-                    println("next screenshot hash:$nextHash" + " delete duplicated file:"+item.name)
-                } else{
+                    println("next screenshot hash:$nextHash" + " delete duplicated file:" + item.name)
+                } else {
                     filteredFileList.add(item)
-                    println("next screenshot hash:$nextHash" + " file will be uploaded:"+item.name)
+                    println("next screenshot hash:$nextHash" + " file will be uploaded:" + item.name)
                     hash = nextHash
                 }
             }
@@ -155,7 +155,7 @@ class AWSS3 {
      * @param file
      * @return String MD5 hash
      */
-    private static String getFileMD5Hash(File file){
+    private static String getFileMD5Hash(File file) {
         byte[] hash = MessageDigest.getInstance("MD5").digest(file.bytes)
         return DatatypeConverter.printHexBinary(hash)
     }

@@ -1,8 +1,8 @@
 package io.cify.cucumber.plugins.reporting
 
-import com.amazonaws.regions.Region
-import com.amazonaws.regions.RegionUtils
-import com.amazonaws.services.kinesis.AmazonKinesisClient
+import com.amazonaws.auth.AWSStaticCredentialsProvider
+import com.amazonaws.services.kinesis.AmazonKinesis
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder
 import com.amazonaws.services.kinesis.model.PutRecordRequest
 import com.amazonaws.services.kinesis.model.PutRecordResult
 import groovy.json.JsonBuilder
@@ -18,8 +18,6 @@ import java.nio.charset.StandardCharsets
  */
 class AWSKinesisStream {
 
-    private final static String STREAM_POSTFIX = "-stream"
-
     /**
      * Initializing AWS parameters and put data to AWS Kinesis stream
      * @param data
@@ -30,7 +28,6 @@ class AWSKinesisStream {
             throw new Exception("Authentication failed")
         }
         String token = AWSAuthentication.getAuthData()?.idToken
-
         def result = new JsonSlurper().parseText(data) as Map
         String partitionKey = result?.keySet()[0].toString()
         if (partitionKey) {
@@ -52,11 +49,12 @@ class AWSKinesisStream {
      * @return String
      */
     private static String putKinesisStreamRecord(String data, String partitionKey) {
-        String awsKinesisStream = AWSAuthentication.company + STREAM_POSTFIX
-        String newPartitionKey = "<company>$AWSAuthentication.company<company><partition>$partitionKey<partition>"
-        AmazonKinesisClient kinesisClient = new AmazonKinesisClient(AWSAuthentication.credentials)
-        Region region = RegionUtils.getRegion(AWSAuthentication.awsRegion)
-        kinesisClient.setRegion(region)
+        String awsKinesisStream = AWSAuthentication.authData.stream
+        String newPartitionKey = "<companyId>$AWSAuthentication.authData.companyId<companyId><partition>$partitionKey<partition>"
+        AmazonKinesis kinesisClient = AmazonKinesisClientBuilder.standard()
+                .withCredentials(new AWSStaticCredentialsProvider(AWSAuthentication.credentials))
+                .withRegion(AWSAuthentication.awsRegion)
+                .build()
 
         PutRecordRequest putRecordRequest = new PutRecordRequest()
         putRecordRequest.setData(ByteBuffer.wrap(data.getBytes(StandardCharsets.UTF_8)))

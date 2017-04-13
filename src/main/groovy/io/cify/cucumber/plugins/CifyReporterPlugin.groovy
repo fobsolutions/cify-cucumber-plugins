@@ -4,6 +4,7 @@ import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
 import groovy.json.JsonBuilder
+import io.cify.cucumber.plugins.reporting.AWSAuthentication
 import io.cify.cucumber.plugins.reporting.ReportManager
 import io.cify.framework.reporting.TestReportManager
 
@@ -56,8 +57,8 @@ class CifyReporterPlugin implements Formatter, Reporter {
      */
     @Override
     void feature(Feature feature) {
-
         String cucumberRunId = getParameter("runId")
+        AWSAuthentication.getAuthData()
         trm = TestReportManager.getTestReportManager()
         trm.testRunStarted(feature.name, cucumberRunId, feature.id)
     }
