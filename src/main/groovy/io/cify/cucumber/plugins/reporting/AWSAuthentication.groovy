@@ -32,10 +32,6 @@ class AWSAuthentication {
     private static final String PARAM_ACCESS_KEY = "accessKey"
     private static final PARAM_CIFY_AWS_AUTH_SERVICE = "authService"
     private static String awsAuthService
-    private static final PARAM_CIFY_AWS_AUTH_SERVICE_STAGE = "serviceStage"
-    private static String authServiceStage
-    private static final String PARAM_SERVICE_REGION = "serviceRegion"
-    public static String awsRegion
     private static def authData
     public static AWSCredentials credentials
 
@@ -60,16 +56,15 @@ class AWSAuthentication {
      */
     private static setAwsCredentials() {
         String cifyAccessKey = ReportManager.getParameter(PARAM_ACCESS_KEY)
-        awsRegion = ReportManager.getParameter(PARAM_SERVICE_REGION)
-        if (cifyAccessKey && awsRegion) {
-            def authData = requestAuthData(cifyAccessKey, awsRegion)
+        if (cifyAccessKey) {
+            def authData = requestAuthData(cifyAccessKey)
             credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
             if (!credentials) {
                 println("Authentication failed. Unable to get credentials")
                 System.exit(0)
             }
         } else {
-            println("Authentication failed. Access key or region not provided")
+            println("Authentication failed. Access key is not provided")
             System.exit(0)
         }
     }
@@ -78,18 +73,15 @@ class AWSAuthentication {
      * Sends request to AWS service and return authentication data
      *
      * @param cifyAccessKey
-     * @param awsRegion
      * @return json object
      */
-    private static def requestAuthData(String cifyAccessKey, String awsRegion) {
+    private static def requestAuthData(String cifyAccessKey) {
         awsAuthService = ReportManager.getParameter(PARAM_CIFY_AWS_AUTH_SERVICE)
-        authServiceStage = ReportManager.getParameter(PARAM_CIFY_AWS_AUTH_SERVICE_STAGE)
-        if (!awsAuthService || !authServiceStage) {
+        if (!awsAuthService) {
             println("Authentication service info not provided.")
             System.exit(0)
         }
 
-        String apiHostname = "${awsAuthService}.execute-api.${awsRegion}.amazonaws.com"
         String postData = "{\n" +
                 "  \"params\": {\n" +
                 "    \"login\": {\n" +
@@ -98,7 +90,7 @@ class AWSAuthentication {
                 "  }\n" +
                 "}"
 
-        authData = httpsRequest(apiHostname, authServiceStage, postData)
+        authData = httpsRequest(awsAuthService, postData)
         return validateAuthData(authData)
     }
 
@@ -111,7 +103,7 @@ class AWSAuthentication {
         return null
     }
 
-    private static def httpsRequest(String hostName, String resource, String postData) {
+    private static def httpsRequest(String hostName, String postData) {
         HttpHost target = new HttpHost(hostName, 443, "https")
         SSLContext sslContext = SSLContexts.createSystemDefault()
         String[] supportedProtocols = ["TLSv1", "SSLv3"]
@@ -128,7 +120,7 @@ class AWSAuthentication {
                 .setConnectionManager(cm)
                 .build()
 
-        HttpPost httpPost = new HttpPost("/$resource")
+        HttpPost httpPost = new HttpPost("/")
         ByteArrayEntity postDataEntity = new ByteArrayEntity(postData.getBytes())
         httpPost.setEntity(postDataEntity)
         CloseableHttpResponse response = httpClient.execute(target, httpPost)
