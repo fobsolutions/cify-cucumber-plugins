@@ -94,7 +94,7 @@ class AWSS3 {
         }
         threadList.each { it.join() }
 
-        println("uploaded volume $volume kb, time " + (System.currentTimeMillis() - uploadStarted) + " ms")
+        println("screenshot data volume $volume kb, time " + (System.currentTimeMillis() - uploadStarted) + " ms")
         if (dir.list().length == 0) {
             dir.delete()
         }
