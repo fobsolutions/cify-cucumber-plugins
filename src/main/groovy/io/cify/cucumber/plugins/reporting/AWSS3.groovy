@@ -22,7 +22,7 @@ import java.security.MessageDigest
 class AWSS3 {
 
     private static final int TAG_MAX_SIZE = 255
-    private static boolean includeToken = false
+    private static boolean includeToken = true
 
     /**
      * Uploads files from given directory to S3 bucket in parallel using temporary AWS credentials
@@ -69,7 +69,7 @@ class AWSS3 {
                         attempts++
                         try {
                             PutObjectRequest por = new PutObjectRequest(AWSAuthentication.authData.bucket, keyName, it as File)
-                            por.setTagging(new ObjectTagging(tags));
+                            por.setTagging(new ObjectTagging(tags))
                             PutObjectResult res = s3Client.putObject(por)
                             if (res) {
                                 uploaded.add(it.name)
@@ -158,4 +158,5 @@ class AWSS3 {
         byte[] hash = MessageDigest.getInstance("MD5").digest(file.bytes)
         return DatatypeConverter.printHexBinary(hash)
     }
+
 }
