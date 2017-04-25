@@ -42,6 +42,7 @@ class AWSS3 {
 
         AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(credentials))
+                .withRegion(AWSAuthentication.region)
                 .build()
 
         println("S3 client created.")
