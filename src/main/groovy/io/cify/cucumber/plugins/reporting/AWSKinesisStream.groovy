@@ -53,6 +53,7 @@ class AWSKinesisStream {
         String newPartitionKey = "<companyId>$AWSAuthentication.authData.companyId<companyId><partition>$partitionKey<partition>"
         AmazonKinesis kinesisClient = AmazonKinesisClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(AWSAuthentication.credentials))
+                .withRegion(AWSAuthentication.region)
                 .build()
 
         PutRecordRequest putRecordRequest = new PutRecordRequest()

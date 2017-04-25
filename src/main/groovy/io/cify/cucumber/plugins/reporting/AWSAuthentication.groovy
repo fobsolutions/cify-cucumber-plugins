@@ -33,6 +33,7 @@ class AWSAuthentication {
     private static final PARAM_CIFY_AWS_AUTH_SERVICE = "authService"
     private static String awsAuthService
     private static def authData
+    public static String region
     public static AWSCredentials credentials
 
     /**
@@ -58,8 +59,9 @@ class AWSAuthentication {
         String cifyAccessKey = ReportManager.getParameter(PARAM_ACCESS_KEY)
         if (cifyAccessKey) {
             def authData = requestAuthData(cifyAccessKey)
+            region = authData?.region
             credentials = new BasicSessionCredentials(authData?.awsAccessKey, authData?.secretKey, authData?.sessionToken)
-            if (!credentials) {
+            if (!credentials || !region) {
                 println("Authentication failed. Unable to get credentials")
                 System.exit(0)
             }
@@ -104,41 +106,49 @@ class AWSAuthentication {
     }
 
     private static def httpsRequest(String hostName, String postData) {
-        HttpHost target = new HttpHost(hostName, 443, "https")
-        SSLContext sslContext = SSLContexts.createSystemDefault()
-        String[] supportedProtocols = ["TLSv1", "SSLv3"]
-        SSLConnectionSocketFactory sslConnectionSocketFactory = new SSLConnectionSocketFactory(sslContext, supportedProtocols, null, SSLConnectionSocketFactory.getDefaultHostnameVerifier())
-
-        Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory> create()
-                .register("http", PlainConnectionSocketFactory.INSTANCE)
-                .register("https", sslConnectionSocketFactory)
-                .build()
-        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(socketFactoryRegistry)
-
-        CloseableHttpClient httpClient = HttpClients.custom()
-                .setSSLSocketFactory(sslConnectionSocketFactory)
-                .setConnectionManager(cm)
-                .build()
-
-        HttpPost httpPost = new HttpPost("/")
-        ByteArrayEntity postDataEntity = new ByteArrayEntity(postData.getBytes())
-        httpPost.setEntity(postDataEntity)
-        CloseableHttpResponse response = httpClient.execute(target, httpPost)
-
         def statusCode = null
         def json = null
+        boolean failed = false
+        CloseableHttpResponse response
+
         try {
+            HttpHost target = new HttpHost(hostName, 443, "https")
+            SSLContext sslContext = SSLContexts.createSystemDefault()
+            String[] supportedProtocols = ["TLSv1", "SSLv3"]
+            SSLConnectionSocketFactory sslConnectionSocketFactory = new SSLConnectionSocketFactory(sslContext, supportedProtocols, null, SSLConnectionSocketFactory.getDefaultHostnameVerifier())
+
+            Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory> create()
+                    .register("http", PlainConnectionSocketFactory.INSTANCE)
+                    .register("https", sslConnectionSocketFactory)
+                    .build()
+            PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(socketFactoryRegistry)
+
+            CloseableHttpClient httpClient = HttpClients.custom()
+                    .setSSLSocketFactory(sslConnectionSocketFactory)
+                    .setConnectionManager(cm)
+                    .build()
+
+            HttpPost httpPost = new HttpPost("/")
+            ByteArrayEntity postDataEntity = new ByteArrayEntity(postData.getBytes())
+            httpPost.setEntity(postDataEntity)
+            response = httpClient.execute(target, httpPost)
             StatusLine sl = response.getStatusLine()
             statusCode = sl.getStatusCode()
             HttpEntity entity = response.getEntity()
             String result = EntityUtils.toString(entity)
             EntityUtils.consume(entity)
             json = new JsonSlurper().parseText(result)
-        } finally {
-            response.close()
         }
-        if(statusCode != 200){
-            if(json.message){
+        catch (ignore) {
+            failed = true
+        }
+        finally {
+            if (response)
+                response.close()
+        }
+
+        if (statusCode != 200 || failed) {
+            if (json && json.message) {
                 println("Reporter: " + json.message)
             } else {
                 println("Reporter: authentication failed")
