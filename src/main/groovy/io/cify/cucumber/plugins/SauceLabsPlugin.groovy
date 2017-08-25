@@ -61,7 +61,9 @@ class SauceLabsPlugin implements Formatter, Reporter {
     @Override
     void feature(Feature feature) {
         DeviceCategory.values().each {
-            DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, "remote", SAUCELABS_URL)
+            if (!DeviceManager.getInstance().getCapabilities().toDesiredCapabilities(it).getCapability("remote")) {
+                DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, "remote", SAUCELABS_URL)
+            }
         }
     }
 
@@ -183,13 +185,17 @@ class SauceLabsPlugin implements Formatter, Reporter {
     void result(Result result) {
 
         DeviceManager.getInstance().getAllActiveDevices().each {
-            String sessionId = (it.getDriver() as RemoteWebDriver).getSessionId() as String
+            try {
+                String sessionId = (it.getDriver() as RemoteWebDriver).getSessionId() as String
 
-            if (sessionIds.isEmpty()) {
-                it.setCapability("video", sauceREST.getPublicJobLink(sessionId))
+                if (sessionIds.isEmpty()) {
+                    it.setCapability("video", sauceREST.getPublicJobLink(sessionId))
+                }
+                sessionIds.add(sessionId)
+                results.add(result)
+            } catch (ignored) {
+                // Not a SauceLabs session
             }
-            sessionIds.add(sessionId)
-            results.add(result)
         }
     }
 
