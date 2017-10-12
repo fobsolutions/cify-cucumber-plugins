@@ -4,7 +4,6 @@ import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
 import io.cify.cucumber.PluginHelper
-import io.cify.framework.core.Capabilities
 import io.cify.framework.core.DeviceCategory
 import io.cify.framework.core.DeviceManager
 import org.openqa.selenium.remote.RemoteWebDriver
@@ -15,7 +14,7 @@ import org.testobject.rest.api.resource.AppiumResource
 /**
  * Created by FOB Solutions
  *
- * This class is responsible for connecting with SauceLabs
+ * This class is responsible for connecting with TestObject 
  */
 class TestObjectPlugin extends PluginHelper implements Formatter, Reporter {
 
