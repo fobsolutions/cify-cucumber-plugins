@@ -1,4 +1,4 @@
-package io.cify.cucumber.plugins.reporting
+package io.cify.cucumber.reporting
 
 import com.amazonaws.auth.AWSCredentials
 import com.amazonaws.auth.BasicSessionCredentials
@@ -41,7 +41,7 @@ class AWSAuthentication {
      *
      * @return json object
      */
-    public static def getAuthData() {
+    static def getAuthData() {
         if (validateAuthData(authData) && credentials) {
             return authData
         } else {

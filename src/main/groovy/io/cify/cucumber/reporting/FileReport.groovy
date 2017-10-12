@@ -1,4 +1,4 @@
-package io.cify.cucumber.plugins.reporting
+package io.cify.cucumber.reporting
 
 /**
  * Created by FOB Solutions

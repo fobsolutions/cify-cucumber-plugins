@@ -21,30 +21,30 @@ class CifyJSONFormatter extends JSONFormatter {
     }
 
     @Override
-    public void scenarioOutline(ScenarioOutline scenarioOutline) {
+    void scenarioOutline(ScenarioOutline scenarioOutline) {
         inScenarioOutline = true
     }
 
     @Override
-    public void examples(Examples examples) {
+    void examples(Examples examples) {
         // NoOp
     }
 
     @Override
-    public void startOfScenarioLifeCycle(Scenario scenario) {
+    void startOfScenarioLifeCycle(Scenario scenario) {
         inScenarioOutline = false
         super.startOfScenarioLifeCycle(scenario)
     }
 
     @Override
-    public void step(Step step) {
+    void step(Step step) {
         if (!inScenarioOutline) {
             super.step(step)
         }
     }
 
     @Override
-    public void feature(Feature feature) {
+    void feature(Feature feature) {
 
         StringBuilder stringBuilder = new StringBuilder(" [")
         DeviceCategory.values().each {

@@ -4,6 +4,7 @@ import com.saucelabs.saucerest.SauceREST
 import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
+import io.cify.cucumber.PluginHelper
 import io.cify.framework.core.CifyFrameworkException
 import io.cify.framework.core.DeviceCategory
 import io.cify.framework.core.DeviceManager
@@ -14,7 +15,7 @@ import org.openqa.selenium.remote.RemoteWebDriver
  *
  * This class is responsible for connecting with SauceLabs
  */
-class SauceLabsPlugin implements Formatter, Reporter {
+class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
 
     private static final String SAUCELABS_USERNAME = getParameter("SAUCELABS_USERNAME")
     private static final String SAUCELABS_ACCESSKEY = getParameter("SAUCELABS_ACCESSKEY")
@@ -217,20 +218,5 @@ class SauceLabsPlugin implements Formatter, Reporter {
     @Override
     void write(String text) {
 
-    }
-
-    /**
-     * Gets parameter from system
-     * @param parameter
-     * @return String
-     */
-    private static String getParameter(String parameter) {
-        if (System.getenv(parameter)) {
-            return System.getenv(parameter)
-        } else if (System.getProperty(parameter)) {
-            return System.getProperty(parameter)
-        } else {
-            throw new CifyFrameworkException("User did not pass parameter for $parameter please add it to system environment variable or system property!")
-        }
     }
 }
