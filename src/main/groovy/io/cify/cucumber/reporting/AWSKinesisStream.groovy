@@ -1,4 +1,4 @@
-package io.cify.cucumber.plugins.reporting
+package io.cify.cucumber.reporting
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.services.kinesis.AmazonKinesis

@@ -3,22 +3,20 @@ package io.cify.cucumber.plugins
 import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
-import groovy.json.JsonBuilder
 import io.cify.cucumber.PluginHelper
-import io.cify.cucumber.reporting.AWSAuthentication
-import io.cify.cucumber.reporting.ReportManager
-import io.cify.framework.reporting.TestReportManager
+import io.cify.framework.core.DeviceCategory
+import io.cify.framework.core.DeviceManager
+import org.openqa.selenium.remote.RemoteWebDriver
+import org.testobject.rest.api.RestClient
+import org.testobject.rest.api.appium.common.TestObjectCapabilities
+import org.testobject.rest.api.resource.AppiumResource
 
 /**
  * Created by FOB Solutions
  *
- * This class is responsible for providing cucumber run information to cify framework
- * and reporting test results
+ * This class is responsible for connecting with TestObject 
  */
-class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
-
-    private TestReportManager trm
-    private static final long NANO_TO_MILLI_DIVIDER = 1000000L
+class TestObjectPlugin extends PluginHelper implements Formatter, Reporter {
 
     /**
      * Is called at the beginning of the scenario life cycle, meaning before the first "before" hook.
@@ -45,10 +43,7 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void uri(String uri) {
-        if (getParameter("suiteFinished") == 'true') {
-            suiteCompletedReport()
-            System.exit(0)
-        }
+
     }
 
     /**
@@ -58,10 +53,9 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void feature(Feature feature) {
-        String cucumberRunId = getParameter("runId")
-        AWSAuthentication.getAuthData()
-        trm = TestReportManager.getTestReportManager()
-        trm.testRunStarted(feature.name, cucumberRunId, feature.id)
+        DeviceCategory.values().each {
+            DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, TestObjectCapabilities.TESTOBJECT_SUITE_NAME, feature.name)
+        }
     }
 
     /**
@@ -89,6 +83,9 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
     @Override
     void startOfScenarioLifeCycle(Scenario scenario) {
 
+        DeviceCategory.values().each {
+            DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, TestObjectCapabilities.TESTOBJECT_TEST_NAME, scenario.name)
+        }
     }
 
     /**
@@ -108,7 +105,7 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void scenario(Scenario scenario) {
-        trm.scenarioStarted(scenario.name, scenario.id)
+
     }
 
     /**
@@ -119,7 +116,7 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void step(Step step) {
-        trm.stepStarted("$step.keyword$step.name")
+
     }
 
     /**
@@ -137,7 +134,7 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void done() {
-        ReportManager.report(trm?.testRunFinished())
+
     }
 
     /**
@@ -145,6 +142,7 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void close() {
+
     }
 
     /**
@@ -152,6 +150,7 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void eof() {
+
     }
 
     @Override
@@ -165,15 +164,22 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void result(Result result) {
-        long durationInMilliseconds = result.duration ? result.duration / NANO_TO_MILLI_DIVIDER : 0
-        ReportManager.report(trm?.stepFinished(result.status, durationInMilliseconds, result.errorMessage))
+
+        DeviceManager.getInstance().getAllActiveDevices().each {
+            try {
+                String apiKey = it.getCapabilities().getCapability(TestObjectCapabilities.TESTOBJECT_API_KEY)
+                if (apiKey) {
+                    String sessionId = (it.getDriver() as RemoteWebDriver).getSessionId() as String
+                    getRestClient(apiKey).updateTestReportStatus(sessionId, result.getStatus() != "failed")
+                }
+            } catch (ignored) {
+                // Not a Remote session
+            }
+        }
     }
 
     @Override
     void after(Match match, Result result) {
-        String scenarioId = trm?.getActiveScenario()?.scenarioId
-        ReportManager.uploadScreenshots(scenarioId)
-        ReportManager.report(trm?.scenarioFinished(result.status, result.errorMessage))
     }
 
     @Override
@@ -192,19 +198,16 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
     }
 
     /**
-     * Report about testsuite end
+     * Init AppiumResource client
+     * @param apiKey - TestObject apiKey
+     * @return AppiumResource
      */
-    private static void suiteCompletedReport() {
-        String projectName = getParameter("projectName")
-        String suiteName = getParameter("suiteName")
-        String testsuiteId = getParameter("runId")
-        def jsonBuilder = new JsonBuilder()
-        jsonBuilder.suite(
-                projectName: projectName,
-                testsuiteId: testsuiteId,
-                suiteName: suiteName,
-                status: "completed"
-        )
-        ReportManager.report(jsonBuilder.toString())
+    private static AppiumResource getRestClient(String apiKey) {
+        new AppiumResource(RestClient.Builder.createClient()
+                .withUrl(TestObjectCapabilities.TESTOBJECT_API_ENDPOINT.toString())
+                .withToken(apiKey)
+                .path(RestClient.REST_APPIUM_PATH)
+                .build())
     }
 }
+
