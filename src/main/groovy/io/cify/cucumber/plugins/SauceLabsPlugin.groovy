@@ -92,7 +92,11 @@ class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
 
     @Override
     void startOfScenarioLifeCycle(Scenario scenario) {
-
+        DeviceCategory.values().each {
+            if (!DeviceManager.getInstance().getCapabilities().toDesiredCapabilities(it).getCapability("name")) {
+                DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, "name", scenario.name)
+            }
+        }
     }
 
     /**
