@@ -4,9 +4,10 @@ import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
 import groovy.json.JsonBuilder
-import io.cify.cucumber.PluginHelper
+
 import io.cify.cucumber.reporting.AWSAuthentication
 import io.cify.cucumber.reporting.ReportManager
+import io.cify.framework.core.CifyFrameworkException
 import io.cify.framework.reporting.TestReportManager
 
 /**
@@ -15,7 +16,7 @@ import io.cify.framework.reporting.TestReportManager
  * This class is responsible for providing cucumber run information to cify framework
  * and reporting test results
  */
-class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
+class CifyReporterPlugin implements Formatter, Reporter {
 
     private TestReportManager trm
     private static final long NANO_TO_MILLI_DIVIDER = 1000000L
@@ -206,5 +207,20 @@ class CifyReporterPlugin extends PluginHelper implements Formatter, Reporter {
                 status: "completed"
         )
         ReportManager.report(jsonBuilder.toString())
+    }
+
+    /**
+     * Gets parameter from system
+     * @param parameter
+     * @return String
+     */
+    static String getParameter(String parameter) {
+        if (System.getenv(parameter)) {
+            return System.getenv(parameter)
+        } else if (System.getProperty(parameter)) {
+            return System.getProperty(parameter)
+        } else {
+            throw new CifyFrameworkException("User did not pass parameter for $parameter please add it to system environment variable or system property!")
+        }
     }
 }

@@ -1,21 +1,29 @@
 package io.cify.cucumber.plugins
 
+import com.google.gson.JsonObject
 import com.saucelabs.saucerest.SauceREST
 import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
-import io.cify.cucumber.PluginHelper
 import io.cify.framework.core.CifyFrameworkException
 import io.cify.framework.core.DeviceCategory
 import io.cify.framework.core.DeviceManager
 import org.openqa.selenium.remote.RemoteWebDriver
+
+import static io.cify.cucumber.plugins.SauceLabsPlugin.Status.SKIPPED
 
 /**
  * Created by FOB Solutions
  *
  * This class is responsible for connecting with SauceLabs
  */
-class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
+class SauceLabsPlugin implements Formatter, Reporter {
+
+    static enum Status {
+        PASSED,
+        FAILED,
+        SKIPPED
+    }
 
     private static final String SAUCELABS_USERNAME = getParameter("SAUCELABS_USERNAME")
     private static final String SAUCELABS_ACCESSKEY = getParameter("SAUCELABS_ACCESSKEY")
@@ -25,6 +33,9 @@ class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
 
     private List<String> sessionIds = new ArrayList<>()
     private List<Result> results = new ArrayList<>()
+    private String error = ""
+    private String featureName
+    private String scenarioName
 
     /**
      * Is called at the beginning of the scenario life cycle, meaning before the first "before" hook.
@@ -61,6 +72,8 @@ class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
      */
     @Override
     void feature(Feature feature) {
+        featureName = feature.getName()
+
         DeviceCategory.values().each {
             if (!DeviceManager.getInstance().getCapabilities().toDesiredCapabilities(it).getCapability("remote")) {
                 DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, "remote", SAUCELABS_URL)
@@ -92,6 +105,8 @@ class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
 
     @Override
     void startOfScenarioLifeCycle(Scenario scenario) {
+        scenarioName = scenario.getName()
+
         DeviceCategory.values().each {
             if (!DeviceManager.getInstance().getCapabilities().toDesiredCapabilities(it).getCapability("name")) {
                 DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, "name", scenario.name)
@@ -142,10 +157,11 @@ class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
                 it.status == "failed"
             }
 
-            if (failedResult) {
-                sauceREST.jobFailed(it)
-            } else {
-                sauceREST.jobPassed(it)
+            try {
+                failedResult ? setStatus(FAILED, it) : setStatus(PASSED, it)
+                addDataToJob(featureName, scenarioName, error, it)
+            } catch (ignored) {
+                // NoOp
             }
         }
         sessionIds.clear()
@@ -206,7 +222,7 @@ class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
 
     @Override
     void after(Match match, Result result) {
-
+        error = result.getErrorMessage()
     }
 
     @Override
@@ -222,5 +238,60 @@ class SauceLabsPlugin extends PluginHelper implements Formatter, Reporter {
     @Override
     void write(String text) {
 
+    }
+
+    /**
+     * Set job status
+     * @param status
+     * @param runId
+     */
+    private void setStatus(Status status, String runId) {
+
+        switch (status) {
+            case PASSED:
+                sauceREST.jobPassed(runId)
+                break
+            case FAILED:
+                sauceREST.jobFailed(runId)
+                break
+            case SKIPPED:
+                sauceREST.stopJob(runId)
+                break
+        }
+    }
+
+    /**
+     * Add data to SauceLabs job
+     * @param featureName
+     * @param scenarioName
+     * @param errorMessage
+     * @param runId
+     */
+    private void addDataToJob(String featureName, String scenarioName, String errorMessage, String runId) {
+
+        Map<String, Object> data = new HashMap<>()
+        JsonObject json = new JsonObject()
+        json.addProperty("feature", featureName)
+        json.addProperty("scenario", scenarioName)
+        json.addProperty("error", errorMessage)
+
+        data.put("custom-data", json)
+        sauceREST.updateJobInfo(runId, data)
+
+    }
+
+    /**
+     * Gets parameter from system
+     * @param parameter
+     * @return String
+     */
+    static String getParameter(String parameter) {
+        if (System.getenv(parameter)) {
+            return System.getenv(parameter)
+        } else if (System.getProperty(parameter)) {
+            return System.getProperty(parameter)
+        } else {
+            throw new CifyFrameworkException("User did not pass parameter for $parameter please add it to system environment variable or system property!")
+        }
     }
 }
