@@ -8,6 +8,10 @@ import gherkin.formatter.model.*
 import io.cify.framework.core.CifyFrameworkException
 import io.cify.framework.core.DeviceCategory
 import io.cify.framework.core.DeviceManager
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Marker
+import org.apache.logging.log4j.MarkerManager
+import org.apache.logging.log4j.core.Logger
 import org.openqa.selenium.remote.RemoteWebDriver
 
 import static io.cify.cucumber.plugins.SauceLabsPlugin.Status.SKIPPED
@@ -30,6 +34,9 @@ class SauceLabsPlugin implements Formatter, Reporter {
     private static
     final String SAUCELABS_URL = "http://$SAUCELABS_USERNAME:$SAUCELABS_ACCESSKEY@ondemand.saucelabs.com:80/wd/hub"
     private SauceREST sauceREST = new SauceREST(SAUCELABS_USERNAME, SAUCELABS_ACCESSKEY)
+
+    private static final Logger LOG = LogManager.getLogger(this.class) as Logger
+    private static final Marker MARKER = MarkerManager.getMarker('SAUCELABSPLUGIN') as Marker
 
     private List<String> sessionIds = new ArrayList<>()
     private List<Result> results = new ArrayList<>()
@@ -72,10 +79,13 @@ class SauceLabsPlugin implements Formatter, Reporter {
      */
     @Override
     void feature(Feature feature) {
+        LOG.debug(MARKER, "Feature started: $feature.name")
+
         featureName = feature.getName()
 
         DeviceCategory.values().each {
             if (!DeviceManager.getInstance().getCapabilities().toDesiredCapabilities(it).getCapability("remote")) {
+                LOG.debug(MARKER, "Remote capability is not present, adding SauceLabs URL")
                 DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, "remote", SAUCELABS_URL)
             }
         }
@@ -105,10 +115,12 @@ class SauceLabsPlugin implements Formatter, Reporter {
 
     @Override
     void startOfScenarioLifeCycle(Scenario scenario) {
+        LOG.debug(MARKER, "Scenario started: $scenario.name")
         scenarioName = scenario.getName()
 
         DeviceCategory.values().each {
             if (!DeviceManager.getInstance().getCapabilities().toDesiredCapabilities(it).getCapability("name")) {
+                LOG.debug(MARKER, "Name capability is not present, will add scenario name")
                 DeviceManager.getInstance().getCapabilities().addToDesiredCapabilities(it, "name", scenario.name)
             }
         }
@@ -160,8 +172,8 @@ class SauceLabsPlugin implements Formatter, Reporter {
             try {
                 failedResult ? setStatus(Status.FAILED, it) : setStatus(Status.PASSED, it)
                 addDataToJob(featureName, scenarioName, error, it)
-            } catch (ignored) {
-                // NoOp
+            } catch (all) {
+                LOG.debug(MARKER, "Failed to set job status cause: " + all.message)
             }
         }
         sessionIds.clear()
@@ -214,8 +226,8 @@ class SauceLabsPlugin implements Formatter, Reporter {
                 }
                 sessionIds.add(sessionId)
                 results.add(result)
-            } catch (ignored) {
-                // Not a SauceLabs session
+            } catch (all) {
+                LOG.debug(MARKER, "Failed to set public job link to capabilities cause: " + all.message)
             }
         }
     }
@@ -247,6 +259,7 @@ class SauceLabsPlugin implements Formatter, Reporter {
      */
     private void setStatus(Status status, String runId) {
 
+        LOG.debug(MARKER, "Setting SauceLabs test status to $status for run with id $runId")
         switch (status) {
             case Status.PASSED:
                 sauceREST.jobPassed(runId)
@@ -276,6 +289,7 @@ class SauceLabsPlugin implements Formatter, Reporter {
         json.addProperty("error", errorMessage)
 
         data.put("custom-data", json)
+        LOG.debug(MARKER, "Adding data to job: $json")
         sauceREST.updateJobInfo(runId, data)
 
     }
