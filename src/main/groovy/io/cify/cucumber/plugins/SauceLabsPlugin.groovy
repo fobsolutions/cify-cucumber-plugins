@@ -158,7 +158,7 @@ class SauceLabsPlugin implements Formatter, Reporter {
             }
 
             try {
-                failedResult ? setStatus(FAILED, it) : setStatus(PASSED, it)
+                failedResult ? setStatus(Status.FAILED, it) : setStatus(Status.PASSED, it)
                 addDataToJob(featureName, scenarioName, error, it)
             } catch (ignored) {
                 // NoOp
@@ -248,10 +248,10 @@ class SauceLabsPlugin implements Formatter, Reporter {
     private void setStatus(Status status, String runId) {
 
         switch (status) {
-            case PASSED:
+            case Status.PASSED:
                 sauceREST.jobPassed(runId)
                 break
-            case FAILED:
+            case Status.FAILED:
                 sauceREST.jobFailed(runId)
                 break
             case SKIPPED:
