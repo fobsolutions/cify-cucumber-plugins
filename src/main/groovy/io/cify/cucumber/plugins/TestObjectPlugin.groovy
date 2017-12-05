@@ -3,7 +3,7 @@ package io.cify.cucumber.plugins
 import gherkin.formatter.Formatter
 import gherkin.formatter.Reporter
 import gherkin.formatter.model.*
-import io.cify.cucumber.PluginHelper
+import io.cify.framework.core.CifyFrameworkException
 import io.cify.framework.core.DeviceCategory
 import io.cify.framework.core.DeviceManager
 import org.openqa.selenium.remote.RemoteWebDriver
@@ -16,7 +16,7 @@ import org.testobject.rest.api.resource.AppiumResource
  *
  * This class is responsible for connecting with TestObject 
  */
-class TestObjectPlugin extends PluginHelper implements Formatter, Reporter {
+class TestObjectPlugin implements Formatter, Reporter {
 
     /**
      * Is called at the beginning of the scenario life cycle, meaning before the first "before" hook.
