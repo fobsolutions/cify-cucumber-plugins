@@ -76,4 +76,4 @@ Or via properties file:
     
     cucumberPlugins=io.cify.cucumber.plugins.CifyJSONFormatter:build/cify/reports/json/
 
-[![Analytics](https://ga-beacon.appspot.com/UA-109814182-1/cify-pages)](https://github.com/fobsolutions/cify-pages)
+[![Analytics](https://ga-beacon.appspot.com/UA-109814182-1/cify-cucumber-plugins)](https://github.com/fobsolutions/cify-cucumber-plugins)
